@@ -1,0 +1,14 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+websockets==12.0
+python-socketio==5.10.0
+python-telegram-bot==20.7
+pandas>=2.2.2
+ta==0.11.0
+ccxt==4.2.25
+deriv-api==0.1.4
+python-dotenv==1.0.0
+yfinance==0.2.36
+newsapi-python==0.2.7
+sqlalchemy==2.0.25
+httpx==0.26.0

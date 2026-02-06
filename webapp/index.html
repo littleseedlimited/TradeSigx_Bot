@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>TradeSigx Dashboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app" class="glass-container">
+        <header>
+            <div class="logo">TRADE<span>SIGX</span></div>
+            <button id="connect-wallet" class="btn-primary">Connect Wallet</button>
+        </header>
+
+        <main>
+            <!-- Real-time Signal Alert -->
+            <section id="signal-alert" class="card glass" style="display:none;">
+                <h3 style="color:var(--primary-color)">🔔 NEW SIGNAL RECEIVED</h3>
+                <p id="signal-asset"></p>
+                <p id="signal-direction"></p>
+                <p id="signal-entry-time"></p>
+                <button id="view-signal-btn" class="btn-primary">View Details</button>
+            </section>
+
+            <section id="assets-section" class="card glass">
+                <h3>Select Asset (56 Total)</h3>
+                <div class="asset-grid">
+                    <div class="asset-btn active" data-symbol="EURUSD=X" data-type="forex">🌍 EUR/USD</div>
+                    <div class="asset-btn" data-symbol="GBPUSD=X" data-type="forex">🌍 GBP/USD</div>
+                    <div class="asset-btn" data-symbol="BTC/USDT" data-type="crypto">₿ BTC</div>
+                    <div class="asset-btn" data-symbol="ETH/USDT" data-type="crypto">💎 ETH</div>
+                    <div class="asset-btn" data-symbol="R_100" data-type="synthetic">⚡ Vol 100</div>
+                    <div class="asset-btn" data-symbol="GC=F" data-type="commodities">📦 Gold</div>
+                </div>
+            </section>
+
+            <section id="chart-section" class="card glass">
+                <div class="card-header">
+                    <h3 id="asset-title">EUR/USD</h3>
+                    <div class="timer" id="trade-timer">CONNECTING...</div>
+                </div>
+                <div id="chart-container"></div>
+                <div class="trade-actions">
+                    <button id="btn-buy" class="btn-trade buy">BUY / UP (5m)</button>
+                    <button id="btn-sell" class="btn-trade sell">SELL / DOWN (5m)</button>
+                </div>
+            </section>
+
+            <section id="scanner-section" class="card glass" style="display:none;">
+                <div class="card-header">
+                    <h3>🚀 High Payout Scanner</h3>
+                    <div id="scanner-status" class="timer">Ready</div>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px;">Scanning 56 assets for trades
+                    with >=85% accuracy...</p>
+                <div id="scanner-grid" class="scanner-grid">
+                    <!-- Grid items will be injected here -->
+                    <div class="scanner-placeholder">Press "Signals" to start scanning</div>
+                </div>
+            </section>
+
+            <section id="history-section" class="card glass">
+                <h3>Recent Signals</h3>
+                <div class="history-list" id="history-list">
+                    <div class="history-item empty">Connecting to server...</div>
+                </div>
+            </section>
+        </main>
+
+        <nav class="bottom-nav glass">
+            <button class="nav-item active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-item" data-tab="signals">Signals</button>
+            <button class="nav-item" data-tab="history">History</button>
+        </nav>
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>
