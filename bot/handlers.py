@@ -51,9 +51,12 @@ def get_market_sentiment():
     top_asset = _last_scan_results[0]['asset'] if _last_scan_results else "None"
     return f"Market Mood: {mood} | Hot: `{top_asset}`"
 
+# Global Semaphore to limit memory usage on low-RAM environments (Render Free Tier)
+scan_semaphore = asyncio.Semaphore(3) 
+
 async def scan_market_now():
     """Core scanning logic used by both manual Quick Analysis and Automated Radar"""
-    global _last_scan_results, _last_scan_time
+    global _last_scan_results, _last_scan_time, scan_semaphore
     
     # Check Cache FIRST
     if _last_scan_results and (time.time() - _last_scan_time < SCAN_CACHE_TTL):
@@ -86,21 +89,39 @@ async def scan_market_now():
     ]
 
     async def scan_asset(symbol, asset_type):
-        try:
-            # Use unified fetch_data (handles normalization and routing)
-            df = await DataCollector.fetch_data(symbol, asset_type)
-            
-            if df is None or df.empty: return None
-            signal = await ai_gen.generate_signal(symbol, df, fast_scan=True)
-            # Alignment Threshold: Lowered to 1% for "Anytime Signals" mode
-            if signal and signal['confidence'] >= 1: return signal
-        except Exception: return None
-        return None
+        async with scan_semaphore:
+            try:
+                # Use unified fetch_data (handles normalization and routing)
+                df = await DataCollector.fetch_data(symbol, asset_type)
+                
+                if df is None or df.empty: 
+                    return None
+                
+                signal = await ai_gen.generate_signal(symbol, df, fast_scan=True)
+                
+                # MEMORY CLEANUP: Delete dataframe immediately after use
+                del df
+                
+                # Alignment Threshold: Lowered to 1% for "Anytime Signals" mode
+                if signal and signal['confidence'] >= 1: 
+                    return signal
+            except Exception: 
+                return None
+            return None
 
     try:
-        tasks = [scan_asset(s, t) for s, t in assets_to_scan]
-        logging.info(f"Starting Scan for {len(assets_to_scan)} assets (Turbo Parallel Mode)...")
+        import gc
+        gc.collect() # Pre-emptive cleanup
+        
+        # Optimize list: Remove low-liquidity assets for free tier stabilization
+        essential_assets = assets_to_scan[:35] # Top 35 instead of 50+
+        
+        tasks = [scan_asset(s, t) for s, t in essential_assets]
+        logging.info(f"Starting Scan for {len(essential_assets)} assets (Low-RAM Concurrency Mode)...")
         results = await asyncio.gather(*tasks)
+        
+        # Post-scan cleanup
+        gc.collect()
             
         logging.info(f"Scan complete. Found {len([r for r in results if r])} high-confidence signals.")
         signals = [r for r in results if r is not None]

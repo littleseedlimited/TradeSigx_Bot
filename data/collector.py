@@ -31,6 +31,7 @@ data_semaphore = asyncio.Semaphore(5)
 # Global Data Cache: symbol -> {'data': df, 'timestamp': time}
 _data_cache = {}
 CACHE_TTL = 60 # 60 seconds cache for market data
+MAX_CACHE_SIZE = 40 # Limit cache to prevent memory creep
 
 class DataCollector:
     # Mapping from Yahoo Symbols/Logic to Deriv Symbols
@@ -50,13 +51,13 @@ class DataCollector:
     async def get_forex_data(symbol: str, interval: str = "15m", retries: int = 2):
         """Fetches data from Yahoo Finance (Primary), with yf.download fallback."""
         def fetch_yf_strategy1():
-            # Strategy 1: Ticker History
+            # Strategy 1: Ticker History (Reduced period for RAM)
             ticker = yf.Ticker(symbol, session=yf_session)
-            return ticker.history(period="5d", interval=interval, timeout=10)
+            return ticker.history(period="2d", interval=interval, timeout=10)
 
         def fetch_yf_strategy2():
-            # Strategy 2: Bulk Download (Sometimes uses different internal API endpoints)
-            return yf.download(symbol, period="5d", interval=interval, session=yf_session, timeout=10, progress=False)
+            # Strategy 2: Bulk Download (Reduced period for RAM)
+            return yf.download(symbol, period="2d", interval=interval, session=yf_session, timeout=10, progress=False)
 
         for i in range(2):
             try:
@@ -107,7 +108,7 @@ class DataCollector:
                 
                 request = {
                     "ticks_history": symbol, 
-                    "count": 500, 
+                    "count": 200, # Reduced from 500 for RAM
                     "end": "latest", 
                     "style": "candles", 
                     "granularity": 300 # 5 min
@@ -142,6 +143,11 @@ class DataCollector:
             entry = _data_cache[symbol]
             if time.time() - entry['timestamp'] < CACHE_TTL:
                 return entry['data']
+        
+        # Cleanup old cache pre-emptively
+        if len(_data_cache) > MAX_CACHE_SIZE:
+            oldest = min(_data_cache.keys(), key=lambda k: _data_cache[k]['timestamp'])
+            del _data_cache[oldest]
 
         async with data_semaphore:
             if not asset_type:
@@ -195,7 +201,8 @@ class DataCollector:
 
         for ex in exchanges:
             try:
-                ohlcv = await asyncio.wait_for(ex.fetch_ohlcv(symbol, timeframe=interval, limit=100), timeout=10)
+                # Reduced limit from 100 to 50 for RAM
+                ohlcv = await asyncio.wait_for(ex.fetch_ohlcv(symbol, timeframe=interval, limit=50), timeout=10)
                 if ohlcv:
                     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
                     await ex.close()
