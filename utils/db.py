@@ -134,18 +134,13 @@ if os.path.exists('/data'):
 engine = create_engine(f'sqlite:///{db_path}', connect_args={"check_same_thread": False})
 Session = sessionmaker(bind=engine)
 
-def init_db(force_create=False):
+def init_db(force_create=True):
     """
     Returns a DBManager instance.
-    If force_create is True, it will run create_all (useful for first-time setup).
+    Ensures all tables exist by calling create_all(engine).
     """
-    if force_create:
-        Base.metadata.create_all(engine)
-        
+    Base.metadata.create_all(engine)
     db = DBManager()
-    
-    # Simple check to see if we need to seed
-    # We only seed if this is explicitly called as an initialization step
     return db
 
 def seed_plans():
