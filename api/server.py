@@ -11,6 +11,12 @@ import os
 
 app = FastAPI(title="TradeSigx API", version="2.0.0")
 
+# Global instances for shared memory (Consolidation)
+from engine.ai_generator import AISignalGenerator
+from data.collector import DataCollector
+ai_gen = AISignalGenerator()
+data_collector = DataCollector()
+
 # Enable CORS for Telegram Mini App
 app.add_middleware(
     CORSMiddleware,
@@ -110,8 +116,10 @@ async def get_user_signals(user_id: str, limit: int = 10):
     from utils.db import init_db, SignalHistory
     
     db = init_db()
-    signals = db.query(SignalHistory).order_by(SignalHistory.id.desc()).limit(limit).all()
-    db.close()
+    try:
+        signals = db.session.query(SignalHistory).order_by(SignalHistory.id.desc()).limit(limit).all()
+    finally:
+        db.close()
     
     return {
         "user_id": user_id,
@@ -144,11 +152,8 @@ async def execute_trade(trade_data: dict):
 @app.get("/api/market-scan")
 async def market_scan():
     """Runs a comprehensive scan for high-confidence assets (>=85%)"""
-    from engine.ai_generator import AISignalGenerator
-    from data.collector import DataCollector
-    import asyncio
-    
-    ai_gen = AISignalGenerator()
+    # Use shared global ai_gen and data_collector
+    global ai_gen, data_collector
     
     # Priority assets (High Return / Popular)
     assets_to_scan = [
@@ -165,11 +170,11 @@ async def market_scan():
     async def scan_asset(symbol, asset_type):
         try:
             if asset_type == "forex":
-                df = DataCollector.get_forex_data(symbol)
+                df = await data_collector.fetch_data(symbol, asset_type)
             elif asset_type == "crypto":
-                df = await DataCollector.get_crypto_data(symbol)
+                df = await data_collector.get_crypto_data(symbol)
             elif asset_type == "synthetic":
-                df = await DataCollector.get_synthetic_data(symbol)
+                df = await data_collector.get_synthetic_data(symbol)
             else:
                 return None
                 
@@ -212,7 +217,4 @@ async def push_signal_to_miniapp(user_id: str, signal: dict):
     """Called by bot to push signal to Mini App"""
     await manager.send_signal(user_id, signal)
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 5000))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+# Removed uvicorn.run to allow main.py to handle startup

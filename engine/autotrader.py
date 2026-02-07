@@ -7,9 +7,12 @@ from engine.ai_generator import AISignalGenerator
 from brokers.deriv_broker import DerivBroker
 
 class AutoTrader:
-    def __init__(self):
-        self.ai = AISignalGenerator()
-        self.deriv = DerivBroker()
+    def __init__(self, ai=None, deriv=None):
+        from engine.ai_generator import AISignalGenerator
+        from brokers.deriv_broker import DerivBroker
+        
+        self.ai = ai or AISignalGenerator()
+        self.deriv = deriv or DerivBroker()
         self.is_running = False
 
     async def start(self):

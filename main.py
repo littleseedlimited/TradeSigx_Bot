@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from bot.handlers import start_command, handle_message, callback_handler
 from utils.db import init_db
+from api.server import app as api_app  # Combined Process
+import uvicorn
 
 # Load environment variables
 load_dotenv()
@@ -18,10 +20,11 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-def start_api_server():
-    """Starts the FastAPI server in a separate process"""
-    print("Starting TradeSigx API Server on port 5000...")
-    return subprocess.Popen([sys.executable, "api/server.py"])
+async def start_combined_api():
+    """Starts the FastAPI server within the same process to save memory"""
+    config = uvicorn.Config(api_app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)), log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
 
 async def start_polling(application):
     """Wait for application to be initialized then start polling"""
@@ -79,16 +82,17 @@ async def market_radar_loop(application):
                         except Exception:
                             pass # Handle blocked users
 
-                    # Create a list of notification tasks
-                    notif_tasks = []
-                    for user in users:
-                        notif_tasks.append(notify_user(user, signal, last_alerts, alert_key))
-                    
-                    if notif_tasks:
-                        await asyncio.gather(*notif_tasks)
+                    # Create batches of 5 to prevent RAM spikes
+                    batch_size = 5
+                    for i in range(0, len(users), batch_size):
+                        batch = users[i:i + batch_size]
+                        notif_tasks = [notify_user(u, signal, last_alerts, alert_key) for u in batch]
+                        if notif_tasks:
+                            await asyncio.gather(*notif_tasks)
+                        await asyncio.sleep(0.1) # Micro-pause for RAM stability
                     
                     last_alerts[alert_key] = time.time()
-                    logging.info(f"Radar Alert: Dispatched {alert_key} to active users.")
+                    logging.info(f"Radar Alert: Dispatched {alert_key} to {len(users)} users.")
                 
                 db.close()
                 
@@ -110,12 +114,9 @@ async def main():
         print("CRITICAL: TELEGRAM_BOT_TOKEN not found in .env file.")
         return
 
-    # Start the API Server first - manage it outside the recovery loop
-    api_process = None
-    try:
-        api_process = start_api_server()
-    except Exception as e:
-        print(f"Warning: API Server failed to start: {e}")
+    # Combined API & Bot Process (RAM Efficient)
+    asyncio.create_task(start_combined_api())
+    print("TradeSigx API Server Initialized in Main Process.")
     
     print("TradeSigx Bot: Building Application layer...")
     # Build Application
@@ -197,8 +198,10 @@ async def main():
                 
                 # 3. Start Heartbeat tasks
                 market_radar_task = asyncio.create_task(market_radar_loop(application))
-                from engine.autotrader import auto_trader
-                autotrader_task = asyncio.create_task(auto_trader.start())
+                from engine.autotrader import AutoTrader
+                from bot.handlers import ai_gen
+                shared_auto_trader = AutoTrader(ai=ai_gen)
+                autotrader_task = asyncio.create_task(shared_auto_trader.start())
                 
                 # 4. Stay Alive & Monitor
                 while True:
