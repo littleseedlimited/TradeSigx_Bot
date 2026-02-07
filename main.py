@@ -22,9 +22,13 @@ logging.basicConfig(
 
 async def start_combined_api():
     """Starts the FastAPI server within the same process to save memory"""
-    config = uvicorn.Config(api_app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)), log_level="info")
-    server = uvicorn.Server(config)
-    await server.serve()
+    try:
+        logging.info("Initializing Combined API Server on port 5000...")
+        config = uvicorn.Config(api_app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)), log_level="info", access_log=False)
+        server = uvicorn.Server(config)
+        await server.serve()
+    except Exception as e:
+        logging.error(f"CRITICAL: Combined API Server failed: {e}")
 
 async def start_polling(application):
     """Wait for application to be initialized then start polling"""
@@ -115,8 +119,8 @@ async def main():
         return
 
     # Combined API & Bot Process (RAM Efficient)
+    logging.info("Starting background API task...")
     asyncio.create_task(start_combined_api())
-    print("TradeSigx API Server Initialized in Main Process.")
     
     print("TradeSigx Bot: Building Application layer...")
     # Build Application
@@ -177,6 +181,12 @@ async def main():
     market_radar_task = None
     autotrader_task = None
     
+    # Initial Bot Command Setup (do it once, outside the loop)
+    try:
+        await set_commands(application)
+    except Exception as e:
+        logging.warning(f"Initial Command Menu Setup failed: {e}")
+
     while True:
         for attempt in range(max_retries):
             try:
@@ -191,10 +201,10 @@ async def main():
                 
                 # 2. Re-establish Polling
                 await application.initialize()
-                await set_commands(application)
+                # await set_commands(application) # MOVED OUTSIDE FOR 429 SAFETY
                 await application.start()
-                await application.updater.start_polling(drop_pending_updates=True)
-                print(f"TradeSigx Bot Online (Recovery Attempt {attempt}).")
+                await application.updater.start_polling()
+                logging.info(f"TradeSigx Bot Online (Recovery Attempt {attempt}).")
                 
                 # 3. Start Heartbeat tasks
                 market_radar_task = asyncio.create_task(market_radar_loop(application))
@@ -210,8 +220,14 @@ async def main():
                         break
                         
             except Exception as e:
-                print(f"System Pulsar: Recovery Attempt {attempt + 1} failed: {e}")
-                await asyncio.sleep(retry_delay)
+                import telegram.error
+                if isinstance(e, telegram.error.RetryAfter):
+                    retry_secs = e.retry_after + 5
+                    logging.warning(f"Telegram Flood Limit: Sleeping for {retry_secs}s...")
+                    await asyncio.sleep(retry_secs)
+                else:
+                    logging.error(f"System Pulsar: Recovery Attempt {attempt + 1} failed: {e}")
+                    await asyncio.sleep(retry_delay)
         
         await asyncio.sleep(60) # Global cooldown
     
