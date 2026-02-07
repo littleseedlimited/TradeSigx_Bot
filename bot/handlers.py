@@ -27,7 +27,8 @@ from bot.admin_handlers import admin_command, admin_callback_handler, admin_mess
 from bot.payment_handler import show_upgrade_menu, handle_payment_callback, handle_successful_payment
 from bot.kyc_handler import start_kyc, handle_kyc_photo, kyc_status, handle_kyc_callback
 
-ai_gen = AISignalGenerator()
+from utils.engines import get_ai_gen, get_data_collector
+ai_gen = get_ai_gen() # 🦁 Use Shared Singleton
 
 # Global Cache for Quick Scan results (Super Fast response)
 _last_scan_results = []
@@ -63,36 +64,26 @@ async def scan_market_now():
         logging.info("Returning cached market scan results (Super Fast Mode)")
         return _last_scan_results
 
-    assets_to_scan = [
+    essential_assets = [
         # Forex
         ("EURUSD=X", "forex"), ("GBPUSD=X", "forex"), ("USDJPY=X", "forex"),
-        ("AUDUSD=X", "forex"), ("USDCAD=X", "forex"), ("USDCHF=X", "forex"),
-        ("NZDUSD=X", "forex"), ("EURGBP=X", "forex"), ("EURJPY=X", "forex"),
-        ("GBPJPY=X", "forex"), ("AUDJPY=X", "forex"), ("GBPCHF=X", "forex"),
-        # Crypto
+        # Crypto (24/7)
         ("BTC/USDT", "crypto"), ("ETH/USDT", "crypto"), ("SOL/USDT", "crypto"),
-        ("ADA/USDT", "crypto"), ("BNB/USDT", "crypto"), ("XRP/USDT", "crypto"),
-        ("DOT/USDT", "crypto"), ("MATIC/USDT", "crypto"), ("LINK/USDT", "crypto"),
-        ("PEPE/USDT", "crypto"), ("NEAR/USDT", "crypto"), ("AVAX/USDT", "crypto"),
-        # Synthetic
-        ("R_100", "synthetic"), ("R_75", "synthetic"), ("R_50", "synthetic"), 
-        ("R_25", "synthetic"), ("R_10", "synthetic"), ("C1000", "synthetic"), 
-        ("C500", "synthetic"), ("B1000", "synthetic"), ("B500", "synthetic"),
-        ("1HZ10V", "synthetic"), ("1HZ100V", "synthetic"), ("J10", "synthetic"),
-        ("J50", "synthetic"), ("STEP", "synthetic"),
+        # Synthetics (Volatility)
+        ("1HZ100V", "synthetic"), ("1HZ75V", "synthetic"), ("C1000", "synthetic"), ("B1000", "synthetic"),
         # Commodities & Indices
-        ("GC=F", "forex"), ("SI=F", "forex"), ("CL=F", "forex"), ("^IXIC", "forex"),
-        ("^GSPC", "forex"), ("^DJI", "forex"), ("^N225", "forex"),
-        # Emerging & Stocks
-        ("USDNGN=X", "forex"), ("USDZAR=X", "forex"), ("NVDA", "forex"),
-        ("TSLA", "forex"), ("AAPL", "forex"), ("MSFT", "forex"),
+        ("GC=F", "forex"), ("SI=F", "forex"), ("CL=F", "forex"),
     ]
+    
+    # Use essential_assets for background radar scans
+    assets_to_scan = essential_assets
 
     async def scan_asset(symbol, asset_type):
         async with scan_semaphore:
             try:
-                # Use unified fetch_data (handles normalization and routing)
-                df = await DataCollector.fetch_data(symbol, asset_type)
+                # Use Shared Singleton for Data Retrieval
+                shared_dc = get_data_collector() 
+                df = await shared_dc.fetch_data(symbol, asset_type)
                 
                 if df is None or df.empty: 
                     return None

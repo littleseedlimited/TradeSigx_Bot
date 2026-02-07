@@ -12,10 +12,9 @@ import os
 app = FastAPI(title="TradeSigx API", version="2.0.0")
 
 # Global instances for shared memory (Consolidation)
-from engine.ai_generator import AISignalGenerator
-from data.collector import DataCollector
-ai_gen = AISignalGenerator()
-data_collector = DataCollector()
+from utils.engines import get_ai_gen, get_data_collector
+ai_gen = get_ai_gen()
+data_collector = get_data_collector()
 
 # Enable CORS for Telegram Mini App
 app.add_middleware(
@@ -151,9 +150,10 @@ async def execute_trade(trade_data: dict):
 
 @app.get("/api/market-scan")
 async def market_scan():
-    """Runs a comprehensive scan for high-confidence assets (>=85%)"""
     # Use shared global ai_gen and data_collector
-    global ai_gen, data_collector
+    from utils.engines import get_ai_gen, get_data_collector
+    this_ai_gen = get_ai_gen()
+    this_data_collector = get_data_collector()
     
     # Priority assets (High Return / Popular)
     assets_to_scan = [
@@ -180,7 +180,7 @@ async def market_scan():
                 
             if df.empty: return None
             
-            signal = await ai_gen.generate_signal(symbol, df)
+            signal = await this_ai_gen.generate_signal(symbol, df)
             if signal and signal['confidence'] >= 85:
                 return signal
         except Exception as e:

@@ -14,7 +14,7 @@ class AISignalGenerator:
         """
         ULTRA-SENSITIVE AI ENGINE
         Combines technicals, structure, sentiment, volume analysis, and momentum.
-        'fast_scan' skips slow external API calls like news sentiment for bulk analysis.
+        'fast_scan' skips slow/heavy external API calls like news sentiment for bulk analysis.
         'manual_duration' allows user to override the AI-selected expiry.
         """
         if df.empty:
@@ -33,10 +33,13 @@ class AISignalGenerator:
         # 2. Market Structure (Trend Detection)
         structure = MarketStructure.detect_structure(df)
         
-        # 3. Sentiment Analysis (News & Social) - SKIP IF FAST_SCAN
+        # 3. Sentiment Analysis (News & Social) - SKIP IF FAST_SCAN (Saves RAM/Speed)
         sentiment_score = 0
         if not fast_scan:
-            sentiment_score = await self.sentiment_engine.get_sentiment(asset)
+            try:
+                sentiment_score = await self.sentiment_engine.get_sentiment(asset)
+            except Exception:
+                sentiment_score = 0
         
         # 4. VOLUME ANALYSIS (Critical for smart trading)
         volume_signal = self._analyze_volume(df)

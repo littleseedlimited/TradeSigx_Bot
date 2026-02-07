@@ -49,6 +49,9 @@ async def market_radar_loop(application):
     
     while True:
         try:
+            import gc
+            gc.collect() # Pre-scan cleanup
+            
             logging.info("Radar Detector: Scanning Markets for prime setups...")
             signals = await scan_market_now()
             
@@ -99,6 +102,10 @@ async def market_radar_loop(application):
                     logging.info(f"Radar Alert: Dispatched {alert_key} to {len(users)} users.")
                 
                 db.close()
+                
+            # Post-scan cleanup
+            if 'signals' in locals(): del signals
+            gc.collect()
                 
             # High-Frequency Scan: Every 5 minutes (300 seconds)
             await asyncio.sleep(300) 
@@ -209,8 +216,8 @@ async def main():
                 # 3. Start Heartbeat tasks
                 market_radar_task = asyncio.create_task(market_radar_loop(application))
                 from engine.autotrader import AutoTrader
-                from bot.handlers import ai_gen
-                shared_auto_trader = AutoTrader(ai=ai_gen)
+                from utils.engines import get_ai_gen
+                shared_auto_trader = AutoTrader(ai=get_ai_gen())
                 autotrader_task = asyncio.create_task(shared_auto_trader.start())
                 
                 # 4. Stay Alive & Monitor
