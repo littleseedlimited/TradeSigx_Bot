@@ -52,8 +52,31 @@ def get_market_sentiment():
     top_asset = _last_scan_results[0]['asset'] if _last_scan_results else "None"
     return f"Market Mood: {mood} | Hot: `{top_asset}`"
 
-# Global Semaphore to limit memory usage on low-RAM environments (Render Free Tier)
-scan_semaphore = asyncio.Semaphore(3) 
+# Global Semaphore to limit memory usage: Strictly Serial for 512MB RAM
+scan_semaphore = asyncio.Semaphore(1) 
+
+def global_gc():
+    """Lion RAM Purge: Forces GC and clears all internal caches"""
+    import gc
+    from data.collector import _data_cache
+    from engine.sentiment_analysis import SentimentAnalysis
+    
+    # 1. Clear Data Cache
+    _data_cache.clear()
+    
+    # 2. Clear Scan Cache (Prevent stale Radar re-dispatches)
+    global _last_scan_results, _last_scan_time
+    _last_scan_results = []
+    _last_scan_time = 0
+    
+    # 3. Clear Sentiment Cache (via singleton pattern)
+    ai_gen = get_ai_gen()
+    if hasattr(ai_gen.sentiment_engine, '_sentiment_cache'):
+        ai_gen.sentiment_engine._sentiment_cache.clear()
+        
+    # 3. Force Python GC
+    gc.collect()
+    logging.info("🦁 Lion Shield: Global Memory Purge Complete.")
 
 async def scan_market_now():
     """Core scanning logic used by both manual Quick Analysis and Automated Radar"""
@@ -100,43 +123,59 @@ async def scan_market_now():
                 return None
             return None
 
-    try:
-        import gc
-        gc.collect() # Pre-emptive cleanup
-        
-        # Optimize list: Remove low-liquidity assets for free tier stabilization
-        essential_assets = assets_to_scan[:35] # Top 35 instead of 50+
-        
-        tasks = [scan_asset(s, t) for s, t in essential_assets]
-        logging.info(f"Starting Scan for {len(essential_assets)} assets (Low-RAM Concurrency Mode)...")
-        results = await asyncio.gather(*tasks)
-        
-        # Post-scan cleanup
-        gc.collect()
+    # SEQUENTIAL SCANNING (Permanent RAM Stability for Render Free Tier)
+    results = []
+    import gc
+    
+    # Confirmed high-priority assets (13 total)
+    essential_assets = [
+        ("EURUSD=X", "forex"), ("GBPUSD=X", "forex"), ("USDJPY=X", "forex"),
+        ("BTC/USDT", "crypto"), ("ETH/USDT", "crypto"), ("SOL/USDT", "crypto"),
+        ("1HZ100V", "synthetic"), ("1HZ75V", "synthetic"), ("C1000", "synthetic"), ("B1000", "synthetic"),
+        ("GC=F", "forex"), ("SI=F", "forex"), ("CL=F", "forex"),
+    ]
+
+    logging.info(f"🦁 Lion Shield: Starting Sequential Scan of {len(essential_assets)} assets...")
+    
+    for symbol, asset_type in essential_assets:
+        try:
+            res = await scan_asset(symbol, asset_type)
+            if res:
+                results.append(res)
             
-        logging.info(f"Scan complete. Found {len([r for r in results if r])} high-confidence signals.")
-        signals = [r for r in results if r is not None]
-        signals.sort(key=lambda x: x['confidence'], reverse=True)
-        
-        # Update Cache
-        _last_scan_results = signals[:10]
-        _last_scan_time = time.time()
-        
-        return _last_scan_results
-    except Exception as e:
-        logging.error(f"Scan market error: {e}")
-        return []
+            # Reclaim RAM immediately after each asset
+            gc.collect() 
+        except Exception as e:
+            logging.error(f"Sequential Scan Error for {symbol}: {e}")
+            continue
+
+    # Sort and Cache Results
+    _last_scan_results = sorted(results, key=lambda x: x['confidence'], reverse=True)
+    _last_scan_time = time.time()
+    
+    logging.info(f"Scan complete. Found {len(_last_scan_results)} high-confidence signals.")
+    return _last_scan_results
 
 async def run_native_scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Native Telegram Scanner - Manual Trigger"""
-    status_msg = await update.message.reply_text(
+    """Native Telegram Scanner - Manual Trigger (Safe for both Message & Callback)"""
+    is_callback = update.callback_query is not None
+    
+    status_text = (
         "🚀 **TradeSigx Pro-Aggressive Scanner** (v8.0-Pro)\n"
         "Analyzing all assets for immediate setups...\n\n"
-        "⏳ *Scanning in progress... Estimated: 10-15 seconds*",
-        parse_mode="Markdown"
+        "⏳ *Scanning in progress... Estimated: 10-15 seconds*"
     )
     
+    if is_callback:
+        status_msg = await update.callback_query.message.reply_text(status_text, parse_mode="Markdown")
+        await update.callback_query.answer()
+    else:
+        status_msg = await update.message.reply_text(status_text, parse_mode="Markdown")
+    
     signals = await scan_market_now()
+    
+    # Reclaim memory immediately after scan
+    global_gc()
 
     if not signals:
         from datetime import datetime
@@ -199,34 +238,45 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user = db.get_user_by_telegram_id(user_id)
         
         if not db_user:
-            # New user - show welcome menu
-            new_user = User(
-                telegram_id=user_id,
-                username=username or user.first_name,
-                registration_step="start"
-            )
-            db.add(new_user)
+            if is_super:
+                # Auto-initialize Super Admin
+                db_user = User(
+                    telegram_id=user_id,
+                    username=username or user.first_name,
+                    is_super_admin=True,
+                    is_registered=True,
+                    subscription_plan="vip",
+                    registration_step="completed"
+                )
+                db.add(db_user)
+                db.commit()
+            else:
+                # New regular user - show welcome menu
+                db.close()
+                await update.message.reply_text(
+                    f"🦁 **WELCOME TO TRADESIGX!**\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"Hello {user.first_name}! 👋\n\n"
+                    f"I'm your **AI-powered trading assistant** for:\n"
+                    f"• Forex & Crypto signals\n"
+                    f"• Synthetic indices\n"
+                    f"• Real-time market analysis\n\n"
+                    f"Get started by choosing an option below:",
+                    reply_markup=get_welcome_menu_keyboard(),
+                    parse_mode="Markdown"
+                )
+                return True
+        elif is_super and not db_user.is_super_admin:
+            # Force upgrade existing user to Super Admin
+            db_user.is_super_admin = True
+            db_user.is_registered = True
+            db_user.subscription_plan = "vip"
             db.commit()
-            db.close()
-            
-            await update.message.reply_text(
-                f"🦁 **WELCOME TO TRADESIGX!**\n"
-                f"━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"Hello {user.first_name}! 👋\n\n"
-                f"I'm your **AI-powered trading assistant** for:\n"
-                f"• Forex & Crypto signals\n"
-                f"• Synthetic indices\n"
-                f"• Real-time market analysis\n\n"
-                f"Get started by choosing an option below:",
-                reply_markup=get_welcome_menu_keyboard(),
-                parse_mode="Markdown"
-            )
-            return True
         
         if db_user.is_super_admin:
             is_super = True
 
-        if not db_user.is_registered:
+        if not db_user.is_registered and not is_super:
             # Unregistered user - show welcome menu
             db.close()
             
@@ -242,6 +292,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # User is registered - show full menu
         plan = (db_user.subscription_plan or "free").upper()
+        if is_super: plan = "LION-VIP"
+        
         kyc = "✅" if db_user.kyc_status == "approved" else "⚠️"
         signals_left = ""
         if plan == "FREE":
@@ -250,7 +302,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         status_line = f"💎 Plan: **{plan}** | KYC: {kyc}{signals_left}"
         if is_super:
-            status_line = f"🔐 **SUPER ADMIN** | {status_line}"
+            status_line = f"🦁 **SUPER ADMIN** | {status_line}"
 
         welcome_text = (
             f"🦁 **TRADESIGX ECOSYSTEM**\n"

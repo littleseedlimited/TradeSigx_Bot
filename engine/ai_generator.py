@@ -78,11 +78,10 @@ class AISignalGenerator:
         # Recalibrate for peak setups
         confidence = min(99, confidence)
         
-        # RELIABILITY FILTER: Lowered to 1% for "Anytime Signals" mode
-        if confidence < 1:
-            confidence = 5.0 # Ensure it shows up as a low-confidence setup rather than None
+        # RELIABILITY FILTER: Strict threshold for Premium Signals
+        if confidence < 65:
+            return None # No garbage signals allowed
         
-        # We NO LONGER return None for STAY or Low Confidence
         # SMART EXPIRY based on volatility and confidence (or manual override)
         if manual_duration:
             expiry = manual_duration

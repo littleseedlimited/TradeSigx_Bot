@@ -9,6 +9,7 @@ class SentimentAnalysis:
         self.api_key = os.getenv("NEWS_API_KEY")
         self._sentiment_cache = {} # Cache sentiment results
         self.SENTIMENT_TTL = 900 # 15 minutes
+        self.MAX_SENTIMENT_CACHE = 20 # Hard limit for 512MB RAM
         if self.api_key:
             self.newsapi = NewsApiClient(api_key=self.api_key)
         else:
@@ -57,7 +58,12 @@ class SentimentAnalysis:
             # Normalize
             final_score = max(-1, min(1, score / 10))
             
-            # Update Cache
+            # Update Cache (with cap enforcement)
+            if len(self._sentiment_cache) >= self.MAX_SENTIMENT_CACHE:
+                # Remove oldest entry
+                oldest_key = min(self._sentiment_cache.keys(), key=lambda k: self._sentiment_cache[k]['timestamp'])
+                del self._sentiment_cache[oldest_key]
+                
             self._sentiment_cache[query] = {'score': final_score, 'timestamp': time.time()}
             return final_score
             

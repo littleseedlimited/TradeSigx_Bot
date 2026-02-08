@@ -65,10 +65,16 @@ def format_signal(signal, user_tz="UTC"):
     except Exception:
         tz = pytz.UTC
         
-    # Convert entry timestamp (UTC) to User's target timezone
+    # Convert entry timestamp (UTC) to User's target timezone (UTC)
     entry_ts = signal.get('entry_timestamp', now_ts)
-    entry_dt = datetime.fromtimestamp(entry_ts, tz=pytz.UTC).astimezone(tz)
-    entry_time_str = entry_dt.strftime("%H:%M:%S")
+    entry_dt_utc = datetime.fromtimestamp(entry_ts, tz=pytz.UTC)
+    
+    # NEW: Also show WAT (UTC+1) for Lagos/London context to prevent "stale" confusion
+    wat_tz = pytz.timezone("Africa/Lagos")
+    entry_dt_wat = entry_dt_utc.astimezone(wat_tz)
+    
+    entry_utc_str = entry_dt_utc.strftime("%H:%M:%S")
+    entry_wat_str = entry_dt_wat.strftime("%H:%M:%S")
     
     # Calculate difference
     countdown_seconds = entry_ts - now_ts
@@ -100,8 +106,10 @@ def format_signal(signal, user_tz="UTC"):
     msg = (
         f"💎 **TradeSigx Premium Signal**\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🕒 **Entry Time**: `{entry_time_str}` ({countdown_text})\n"
-        f"📍 **Timezone**: `{user_tz}`\n"
+        f"🕒 **Entry (UTC)**: `{entry_utc_str}`\n"
+        f"🇳🇬 **Entry (WAT)**: `{entry_wat_str}`\n"
+        f"⏳ **Status**: `{countdown_text}`\n"
+        f"📍 **Timezone**: `UTC / WAT (+1)`\n"
         f"⏳ **Expiry**: `{signal['expiry']}`\n"
         f"🔔 **Notice**: `ORDER READY`\n\n"
         f"Asset: **{asset_display}**\n"

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
-from utils.db import DBManager, User, trade_executions
+from utils.db import DBManager, User, TradeExecution
 from data.collector import DataCollector
 from engine.ai_generator import AISignalGenerator
 from brokers.deriv_broker import DerivBroker
@@ -27,6 +27,9 @@ class AutoTrader:
                 await self._run_scan_cycle()
             except Exception as e:
                 logging.error(f"AutoTrader Cycle Error: {e}")
+            # Lion RAM Shield: Purge all caches and reclaim memory
+            from bot.handlers import global_gc
+            global_gc()
             
             # Wait for next cycle (e.g., every 5 minutes)
             await asyncio.sleep(300)
@@ -56,19 +59,25 @@ class AutoTrader:
 
         logging.info(f"AutoTrader: Batched scanning for {len(all_unique_assets)} unique assets across {len(users)} users.")
 
-        # 2. Parallel Scanning
-        async def scan_and_analyze(asset):
+        # 2. Sequential Scanning (Permanent RAM Shield)
+        scan_results = {}
+        import gc
+        for asset in all_unique_assets:
             try:
+                # Use sequential scan to prevent OOM
                 df = await DataCollector.fetch_data(asset)
-                if df.empty: return asset, None
+                if df.empty: continue
+                
                 signal = await self.ai.generate_signal(asset, df, fast_scan=True)
-                return asset, signal
+                if signal:
+                    scan_results[asset] = signal
+                
+                # Cleanup and reclaim RAM immediately
+                del df
+                gc.collect() 
             except Exception as e:
-                logging.error(f"AutoTrader Parallel Scan Error ({asset}): {e}")
-                return asset, None
-
-        # Execute parallel scans
-        scan_results = dict(await asyncio.gather(*[scan_and_analyze(a) for a in all_unique_assets]))
+                logging.error(f"AutoTrader Sequential Scan Error ({asset}): {e}")
+                continue
 
         # 3. Distribute Results and Execute
         today = datetime.now().strftime("%Y-%m-%d")
@@ -80,10 +89,10 @@ class AutoTrader:
 
                 # Decision Logic
                 if signal['confidence'] >= user.autotrade_min_confidence:
-                    # Check daily limit
-                    trade_count = db.session.query(trade_executions).filter(
-                        trade_executions.c.user_id == str(user.telegram_id),
-                        trade_executions.c.timestamp >= datetime.strptime(today, "%Y-%m-%d")
+                    # Check daily limit using SQLAlchemy ORM class
+                    trade_count = db.session.query(TradeExecution).filter(
+                        TradeExecution.user_id == str(user.telegram_id),
+                        TradeExecution.timestamp >= datetime.strptime(today, "%Y-%m-%d")
                     ).count()
                     
                     if trade_count < user.autotrade_max_trades:

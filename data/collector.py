@@ -31,7 +31,7 @@ data_semaphore = asyncio.Semaphore(5)
 # Global Data Cache: symbol -> {'data': df, 'timestamp': time}
 _data_cache = {}
 CACHE_TTL = 60 # 60 seconds cache for market data
-MAX_CACHE_SIZE = 40 # Limit cache to prevent memory creep
+MAX_CACHE_SIZE = 20 # Reduced for 512MB RAM stability
 
 class DataCollector:
     # Mapping from Yahoo Symbols/Logic to Deriv Symbols

@@ -373,7 +373,11 @@ def check_signal_limit(user) -> tuple:
     return True, ""
 
 def increment_signal_usage(user, db):
-    """Increment the user's daily signal count"""
+    """Increment the user's daily signal count (Admin bypass)"""
+    # SUPER ADMIN bypass: Never increment usage
+    if user and str(user.telegram_id) == SUPER_ADMIN_ID:
+        return
+
     today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
     if user.last_signal_date != today:
         user.signals_used_today = 0

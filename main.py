@@ -36,16 +36,17 @@ async def start_polling(application):
     await application.start()
     await application.updater.start_polling()
 
+# Global tracker for radar messages to be auto-deleted (chat_id, message_id, expire_time)
+sent_radar_messages = []
+
 async def market_radar_loop(application):
-    """Background Radar: Scans every 30 minutes and notifies users of high-confidence trades"""
-    print("Market Radar Logic Initialized.")
-    from bot.handlers import scan_market_now
+    """Background Radar: Scans every 15 minutes and notifies users of setups. Alerts expire after 30m."""
+    import time
+    import asyncio
+    from bot.handlers import scan_market_now, global_gc
     from utils.formatter import format_signal
     from utils.db import init_db
-    
-    # Simple deduplication cache: symbol_direction -> last_alert_time
-    last_alerts = {}
-    import time
+    last_alerts = {} 
     
     while True:
         try:
@@ -60,9 +61,14 @@ async def market_radar_loop(application):
                 users = db.get_all_users()
                 
                 for signal in signals:
-                    # 1. Anytime Signals Mode (1% Threshold)
-                    # 2. Must meet the trend-alignment criteria (handled by engine)
-                    if signal['confidence'] < 1:
+                    # 1. Premium Filter: Only 70%+ confidence for Radar Alerts
+                    if signal['confidence'] < 70:
+                        continue
+    
+                    # 2. Freshness Filter: Ensure at least 2 minutes of lead time
+                    # Prevents "stale" signals if scanning or batching was slow
+                    if signal['entry_timestamp'] < (time.time() + 120):
+                        logging.info(f"Radar: Skipping {signal['asset']} - inadequate lead time (< 2m).")
                         continue
     
                     # Deduplication logic (skip if we alerted for this asset/direction in the last hour)
@@ -80,12 +86,14 @@ async def market_radar_loop(application):
                             message, kb = format_signal(signal, user_tz=user_tz)
                             full_msg = f"🔔 **SIGNAL DETECTED** (High Confidence) 🔔\n\n{message}"
                             
-                            await application.bot.send_message(
+                            sent_msg = await application.bot.send_message(
                                 chat_id=user.telegram_id,
                                 text=full_msg,
                                 reply_markup=kb,
                                 parse_mode="Markdown"
                             )
+                            # Track for auto-deletion (30 minutes expiry)
+                            sent_radar_messages.append((user.telegram_id, sent_msg.message_id, time.time() + 1800))
                         except Exception:
                             pass # Handle blocked users
 
@@ -103,12 +111,12 @@ async def market_radar_loop(application):
                 
                 db.close()
                 
-            # Post-scan cleanup
-            if 'signals' in locals(): del signals
-            gc.collect()
+            # Lion RAM Shield: Purge all caches and reclaim memory
+            from bot.handlers import global_gc
+            global_gc()
                 
-            # High-Frequency Scan: Every 5 minutes (300 seconds)
-            await asyncio.sleep(300) 
+            # Radar frequency: Every 15 minutes (900 seconds)
+            await asyncio.sleep(900) 
             
         except Exception as e:
             logging.error(f"Radar Detector Error: {e}")
@@ -188,7 +196,8 @@ async def main():
     market_radar_task = None
     autotrader_task = None
     
-    # Initial Bot Command Setup (do it once, outside the loop)
+    # Initial Bot Command Setup & Initialization (ONCE)
+    await application.initialize()
     try:
         await set_commands(application)
     except Exception as e:
@@ -198,20 +207,25 @@ async def main():
         for attempt in range(max_retries):
             try:
                 # 1. Clear potentially stalled tasks
-                if market_radar_task: market_radar_task.cancel()
-                if autotrader_task: autotrader_task.cancel()
+                if market_radar_task:
+                    market_radar_task.cancel()
+                    try: await market_radar_task
+                    except: pass
+                if autotrader_task:
+                    autotrader_task.cancel()
+                    try: await autotrader_task
+                    except: pass
                 
-                if application.updater and application.updater.running:
+                # Full Cleanup of previous run (Safe check)
+                if application.updater and application.updater.running: 
                     await application.updater.stop()
+                if application.running: 
                     await application.stop()
-                    await application.shutdown()
                 
                 # 2. Re-establish Polling
-                await application.initialize()
-                # await set_commands(application) # MOVED OUTSIDE FOR 429 SAFETY
                 await application.start()
                 await application.updater.start_polling()
-                logging.info(f"TradeSigx Bot Online (Recovery Attempt {attempt}).")
+                logging.info(f"TradeSigx Bot Online (Stable Recovery Attempt {attempt}).")
                 
                 # 3. Start Heartbeat tasks
                 market_radar_task = asyncio.create_task(market_radar_loop(application))
