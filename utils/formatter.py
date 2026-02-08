@@ -35,13 +35,18 @@ ASSET_NAMES = {
     "AMZN": "Amazon.com (AMZN)", "META": "Meta Platforms (META)",
     "NVDA": "NVIDIA Corp. (NVDA)", "NFLX": "Netflix Inc. (NFLX)",
     # Synthetic
-    "R_10": "Volatility 10 Index (V10)", "R_25": "Volatility 25 Index (V25)",
-    "R_50": "Volatility 50 Index (V50)", "R_75": "Volatility 75 Index (V75)",
-    "R_100": "Volatility 100 Index (V100)", "C1000": "Crash 1000 Index",
-    "C500": "Crash 500 Index", "C300": "Crash 300 Index", "B1000": "Boom 1000 Index",
-    "B500": "Boom 500 Index", "B300": "Boom 300 Index", "J10": "Jump 10 Index",
-    "J50": "Jump 50 Index", "STEP": "Step Index",
-    "1HZ10V": "Volatility 10 (1s) Index", "1HZ100V": "Volatility 100 (1s) Index"
+    "R_10": "Volatility 10 Index (R_10)", "R_25": "Volatility 25 Index (R_25)",
+    "R_50": "Volatility 50 Index (R_50)", "R_75": "Volatility 75 Index (R_75)",
+    "R_100": "Volatility 100 Index (R_100)", 
+    "1HZ10V": "Volatility 10 (1s) Index (1HZ10V)", 
+    "1HZ25V": "Volatility 25 (1s) Index (1HZ25V)",
+    "1HZ50V": "Volatility 50 (1s) Index (1HZ50V)",
+    "1HZ75V": "Volatility 75 (1s) Index (1HZ75V)",
+    "1HZ100V": "Volatility 100 (1s) Index (1HZ100V)",
+    "C1000": "Crash 1000 Index (C1000)", "C500": "Crash 500 Index (C500)", "C300": "Crash 300 Index (C300)", 
+    "B1000": "Boom 1000 Index (B1000)", "B500": "Boom 500 Index (B500)", "B300": "Boom 300 Index (B300)", 
+    "J10": "Jump 10 Index (J10)", "J25": "Jump 25 Index (J25)", "J50": "Jump 50 Index (J50)", 
+    "J100": "Jump 100 Index (J100)", "STEP": "Step Index (STEP)"
 }
 
 def format_signal(signal, user_tz="UTC"):
