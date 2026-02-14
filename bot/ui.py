@@ -81,14 +81,15 @@ def get_crypto_keyboard():
 
 def get_synthetic_keyboard():
     keyboard = [
-        [InlineKeyboardButton("Volatility 10", callback_data="analyze_synthetic_R_10"), InlineKeyboardButton("Volatility 25", callback_data="analyze_synthetic_R_25")],
-        [InlineKeyboardButton("Volatility 50", callback_data="analyze_synthetic_R_50"), InlineKeyboardButton("Volatility 75", callback_data="analyze_synthetic_R_75")],
-        [InlineKeyboardButton("Volatility 100", callback_data="analyze_synthetic_R_100"), InlineKeyboardButton("Crash 300", callback_data="analyze_synthetic_C300")],
-        [InlineKeyboardButton("Crash 500", callback_data="analyze_synthetic_C500"), InlineKeyboardButton("Crash 1000", callback_data="analyze_synthetic_C1000")],
-        [InlineKeyboardButton("Boom 300", callback_data="analyze_synthetic_B300"), InlineKeyboardButton("Boom 500", callback_data="analyze_synthetic_B500")],
-        [InlineKeyboardButton("Boom 1000", callback_data="analyze_synthetic_B1000"), InlineKeyboardButton("Jump 10", callback_data="analyze_synthetic_J10")],
-        [InlineKeyboardButton("Jump 50", callback_data="analyze_synthetic_J50"), InlineKeyboardButton("Step Index", callback_data="analyze_synthetic_STEP")],
-        [InlineKeyboardButton("🔙 Back to Analysis", callback_data="analyze_back")]
+        [InlineKeyboardButton("Volatility 10", callback_data="analyze_synthetic_R_10"), InlineKeyboardButton("Volat 10 (1s)", callback_data="analyze_synthetic_1HZ10V")],
+        [InlineKeyboardButton("Volatility 25", callback_data="analyze_synthetic_R_25"), InlineKeyboardButton("Volatility 50", callback_data="analyze_synthetic_R_50")],
+        [InlineKeyboardButton("Volatility 75", callback_data="analyze_synthetic_R_75"), InlineKeyboardButton("Volat 75 (1s)", callback_data="analyze_synthetic_1HZ75V")],
+        [InlineKeyboardButton("Volatility 100", callback_data="analyze_synthetic_R_100"), InlineKeyboardButton("Volat 100 (1s)", callback_data="analyze_synthetic_1HZ100V")],
+        [InlineKeyboardButton("Crash 300", callback_data="analyze_synthetic_C300"), InlineKeyboardButton("Crash 500", callback_data="analyze_synthetic_C500")],
+        [InlineKeyboardButton("Crash 1000", callback_data="analyze_synthetic_C1000"), InlineKeyboardButton("Boom 300", callback_data="analyze_synthetic_B300")],
+        [InlineKeyboardButton("Boom 500", callback_data="analyze_synthetic_B500"), InlineKeyboardButton("Boom 1000", callback_data="analyze_synthetic_B1000")],
+        [InlineKeyboardButton("Jump 10", callback_data="analyze_synthetic_J10"), InlineKeyboardButton("Jump 50", callback_data="analyze_synthetic_J50")],
+        [InlineKeyboardButton("Step Index", callback_data="analyze_synthetic_STEP"), InlineKeyboardButton("🔙 Back to Analysis", callback_data="analyze_back")]
     ]
     return InlineKeyboardMarkup(keyboard)
 

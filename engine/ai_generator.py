@@ -1,5 +1,6 @@
 import pandas as pd
 import pytz
+import logging
 from datetime import datetime, timedelta
 from engine.technical_analysis import TechnicalAnalysis
 from engine.market_structure import MarketStructure
