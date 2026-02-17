@@ -166,6 +166,7 @@ async def handle_signup_message(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text(
                 "✅ Email saved!\n\n"
                 "**Step 3 of 6**: What's your phone number?\n\n"
+                "⚠️ **This is mandatory** for SMS alerts and account verification.\n"
                 "Include country code (e.g., +234XXXXXXXXXX or +1XXXXXXXXXX)",
                 parse_mode="Markdown"
             )
@@ -191,7 +192,8 @@ async def handle_signup_message(update: Update, context: ContextTypes.DEFAULT_TY
             
             await update.message.reply_text(
                 "✅ Phone saved!\n\n"
-                "**Step 4 of 6**: Select your country:",
+                "**Step 4 of 6**: Select your country:\n\n"
+                "⚠️ **This is mandatory** to provide relevant market signals for your region.",
                 reply_markup=get_country_keyboard(),
                 parse_mode="Markdown"
             )
@@ -364,6 +366,11 @@ def check_user_access(user) -> tuple:
     if not user.is_registered:
         return False, "Please complete your registration with /signup."
     
+    # Strict Enforcement of Mandatory Fields
+    if not user.email or not user.phone or not user.country:
+        user.is_registered = False # Force re-signup if data is missing
+        return False, "⚠️ **Profile Incomplete**: We noticed some mandatory fields (Email, Phone, or Country) are missing. Please use /signup to update your profile."
+
     if user.is_banned:
         return False, f"Your account has been suspended. Reason: {user.ban_reason or 'Contact support.'}"
     

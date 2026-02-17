@@ -589,6 +589,19 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if await handle_kyc_callback(update, context):
             return True
         
+        # Profile Health Check: INTERCEPT analysis/trade commands for incomplete profiles
+        if query.data.startswith(("analyze_", "exec_analyze", "sel|broker", "menu_bulk_scan", "exec_bulk_scan")):
+            db = init_db()
+            try:
+                user = db.get_user_by_telegram_id(str(update.effective_user.id))
+                can_access, error_msg = check_user_access(user)
+                if not can_access:
+                    await query.answer("⚠️ Profile Incomplete", show_alert=True)
+                    await query.edit_message_text(error_msg, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 Complete /signup", callback_data="cmd_signup")]]), parse_mode="Markdown")
+                    return True
+            finally:
+                db.close()
+        
         # Handle welcome menu commands
         if query.data == "cmd_signup":
             # Start the signup process
@@ -603,7 +616,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 "📝 **SIGN UP**\n━━━━━━━━━━━━━━━━━━━━\n\n"
                 "Let's get you set up! This takes less than a minute.\n\n"
-                "**Step 1 of 5**: What's your full name?",
+                "**Step 1 of 6**: What's your full name?",
                 parse_mode="Markdown"
             )
             return True
