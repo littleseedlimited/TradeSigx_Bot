@@ -212,6 +212,77 @@ async def push_signal_internal(payload: dict):
         return {"status": "success"}
     return {"status": "error", "message": "Missing user_id or signal"}
 
+# --- ADMIN MANAGEMENT ENDPOINTS ---
+
+@app.get("/api/admin/users")
+async def admin_get_users(admin_id: str):
+    """Fetch all users for the Admin Dashboard"""
+    from utils.db import init_db, User, SUPER_ADMIN_ID
+    if admin_id != SUPER_ADMIN_ID:
+        raise HTTPException(status_code=403, detail="Unauthorized Access")
+    
+    db = init_db()
+    try:
+        users = db.get_all_users()
+        return [
+            {
+                "id": u.id,
+                "telegram_id": u.telegram_id,
+                "username": u.username,
+                "full_name": u.full_name,
+                "email": u.email,
+                "subscription_plan": u.subscription_plan,
+                "kyc_status": u.kyc_status,
+                "is_registered": u.is_registered,
+                "is_admin": u.is_admin,
+                "is_banned": u.is_banned,
+                "joined_at": u.joined_at.isoformat() if u.joined_at else None
+            }
+            for u in users
+        ]
+    finally:
+        db.close()
+
+@app.post("/api/admin/user-action")
+async def admin_user_action(payload: dict):
+    """Perform CRUD action on a user (ban, promote, delete)"""
+    from utils.db import init_db, User, SUPER_ADMIN_ID, SignalHistory, TradeExecution, BrokerAccount
+    admin_id = payload.get("admin_id")
+    target_id = payload.get("target_id")
+    action = payload.get("action") # ban, unban, promote, demote, delete
+    
+    if admin_id != SUPER_ADMIN_ID:
+        raise HTTPException(status_code=403, detail="Unauthorized Access")
+    
+    db = init_db()
+    try:
+        user = db.get_user_by_telegram_id(target_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        if action == "ban":
+            user.is_banned = True
+            user.ban_reason = payload.get("reason", "Violated terms")
+        elif action == "unban":
+            user.is_banned = False
+        elif action == "promote":
+            user.is_admin = True
+        elif action == "demote":
+            user.is_admin = False
+        elif action == "delete":
+            # Cascading deletion for SQLite (manual because of how models are structured)
+            db.session.query(TradeExecution).filter(TradeExecution.user_id == target_id).delete()
+            db.session.query(BrokerAccount).filter(BrokerAccount.user_id == user.id).delete()
+            # Note: SignalHistory is global, not user-specific in current schema
+            db.session.delete(user)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid action")
+            
+        db.commit()
+        return {"status": "success", "message": f"Action {action} performed on {target_id}"}
+    finally:
+        db.close()
+
 # Function to be called from bot handlers
 async def push_signal_to_miniapp(user_id: str, signal: dict):
     """Called by bot to push signal to Mini App"""

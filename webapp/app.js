@@ -4,7 +4,13 @@ tele.expand();
 // Use relative URL so it works through the same tunnel
 const API_URL = window.location.origin;
 const userId = tele.initDataUnsafe?.user?.id || 'demo_user';
+const SUPER_ADMIN_ID = "1241907317";
 let socket;
+
+// Identify Admin
+if (userId.toString() === SUPER_ADMIN_ID) {
+    document.getElementById('nav-admin').style.display = 'block';
+}
 
 function connectWebSocket() {
     // Standardize to native WebSocket for FastAPI compatibility
@@ -213,6 +219,7 @@ function switchTab(tab) {
     document.getElementById('assets-section').style.display = 'none';
     document.getElementById('history-section').style.display = 'none';
     document.getElementById('scanner-section').style.display = 'none';
+    document.getElementById('admin-section').style.display = 'none';
 
     if (tab === 'dashboard') {
         document.getElementById('chart-section').style.display = 'block';
@@ -223,8 +230,87 @@ function switchTab(tab) {
         runMarketScan();
     } else if (tab === 'history') {
         document.getElementById('history-section').style.display = 'block';
+    } else if (tab === 'admin') {
+        document.getElementById('admin-section').style.display = 'block';
+        loadAdminUsers();
     }
 }
+
+async function loadAdminUsers() {
+    const listBody = document.getElementById('user-list-body');
+    if (!listBody) return;
+
+    listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Loading users...</td></tr>';
+
+    try {
+        const res = await fetch(`${API_URL}/api/admin/users?admin_id=${userId}`);
+        const users = await res.json();
+
+        listBody.innerHTML = '';
+        if (users.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No users found.</td></tr>';
+            return;
+        }
+
+        users.forEach(u => {
+            const tr = document.createElement('tr');
+            const kycIcon = u.kyc_status === 'approved' ? '✅' : (u.kyc_status === 'pending' ? '⏳' : '❌');
+
+            tr.innerHTML = `
+                <td>
+                    <div class="user-cell">
+                        <span class="handle">@${u.username || 'N/A'}</span>
+                        <span class="id">${u.telegram_id}</span>
+                    </div>
+                </td>
+                <td><span class="plan-badge plan-${u.subscription_plan}">${u.subscription_plan.toUpperCase()}</span></td>
+                <td><span class="status-badge" title="${u.kyc_status}">${kycIcon}</span></td>
+                <td>${u.is_banned ? '<span class="status-cross">BANNED</span>' : '<span class="status-check">ACTIVE</span>'}</td>
+                <td>
+                    <button class="btn-action ${u.is_banned ? 'promote' : 'ban'}" onclick="adminAction('${u.telegram_id}', '${u.is_banned ? 'unban' : 'ban'}')">${u.is_banned ? 'Unban' : 'Ban'}</button>
+                    <button class="btn-action delete" onclick="adminAction('${u.telegram_id}', 'delete')">Del</button>
+                    ${!u.is_admin ? `<button class="btn-action promote" onclick="adminAction('${u.telegram_id}', 'promote')">↑</button>` : ''}
+                </td>
+            `;
+            listBody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error('Admin Load Error:', e);
+        listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff4976; padding:20px;">Error loading users.</td></tr>';
+    }
+}
+
+async function adminAction(targetId, action) {
+    if (action === 'delete' && !confirm('Are you sure you want to delete this user?')) return;
+
+    try {
+        const res = await fetch(`${API_URL}/api/admin/user-action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                admin_id: userId.toString(),
+                target_id: targetId.toString(),
+                action: action
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            tele.HapticFeedback.notificationOccurred('success');
+            loadAdminUsers();
+        } else {
+            alert('Action failed: ' + data.detail);
+        }
+    } catch (e) {
+        console.error('Admin Action Error:', e);
+        alert('Connection error');
+    }
+}
+
+// Refresh button
+document.getElementById('refresh-users').addEventListener('click', loadAdminUsers);
+
+// Expose adminAction to global scope for onclick handlers
+window.adminAction = adminAction;
 
 async function runMarketScan() {
     const grid = document.getElementById('scanner-grid');

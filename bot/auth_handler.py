@@ -60,15 +60,32 @@ async def start_signup(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         else:
-            # Resume signup
+            # Resume/Reset signup
             user.registration_step = "name"
+            # Ensure we update username if they set one since last attempt
+            if username and not user.username:
+                user.username = username
             db.commit()
         
+        # Check for missing username (Mandatory Requirement)
+        if not user.username:
+            user.registration_step = "set_username"
+            db.commit()
+            await update.message.reply_text(
+                "🦁 **WELCOME TO TRADESIGX**\n"
+                "━━━━━━━━━━━━━━━━━━━━\n\n"
+                "I noticed you don't have a Telegram @username set.\n"
+                "**Requirement**: Please type a unique username for your account below:",
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return
+
         await update.message.reply_text(
             "🦁 **WELCOME TO TRADESIGX**\n"
             "━━━━━━━━━━━━━━━━━━━━\n\n"
             "Let's get you set up! This takes less than a minute.\n\n"
-            "**Step 1 of 5**: What's your full name?",
+            "**Step 1 of 6**: What's your full name?",
             parse_mode="Markdown",
             reply_markup=ReplyKeyboardRemove()
         )
@@ -90,6 +107,29 @@ async def handle_signup_message(update: Update, context: ContextTypes.DEFAULT_TY
         step = user.registration_step
         
         # Step 1: Name
+        # Step 0: Set Username (if missing from Telegram)
+        if step == "set_username":
+            if len(text) < 3 or len(text) > 30:
+                await update.message.reply_text("❌ Username must be 3-30 characters.")
+                return True
+            
+            # Simple check for unique username in DB
+            existing = db.session.query(User).filter(User.username == text).first()
+            if existing:
+                await update.message.reply_text("❌ This username is already taken. Please try another.")
+                return True
+                
+            user.username = text
+            user.registration_step = "name"
+            db.commit()
+            await update.message.reply_text(
+                f"✅ Username set to **{text}**!\n\n"
+                "**Step 1 of 6**: What's your full name?",
+                parse_mode="Markdown"
+            )
+            return True
+
+        # Step 1: Name
         if step == "name":
             if len(text) < 2 or len(text) > 100:
                 await update.message.reply_text("❌ Please enter a valid name (2-100 characters).")
@@ -101,8 +141,8 @@ async def handle_signup_message(update: Update, context: ContextTypes.DEFAULT_TY
             
             await update.message.reply_text(
                 f"Great, **{text}**! 👋\n\n"
-                "**Step 2 of 5**: What's your email address?\n\n"
-                "_We'll use this for important account notifications._",
+                "**Step 2 of 6**: What's your email address?\n\n"
+                "⚠️ **This is mandatory** for account recovery and pro features.",
                 parse_mode="Markdown"
             )
             return True
@@ -125,7 +165,7 @@ async def handle_signup_message(update: Update, context: ContextTypes.DEFAULT_TY
             
             await update.message.reply_text(
                 "✅ Email saved!\n\n"
-                "**Step 3 of 5**: What's your phone number?\n\n"
+                "**Step 3 of 6**: What's your phone number?\n\n"
                 "Include country code (e.g., +234XXXXXXXXXX or +1XXXXXXXXXX)",
                 parse_mode="Markdown"
             )
@@ -151,7 +191,7 @@ async def handle_signup_message(update: Update, context: ContextTypes.DEFAULT_TY
             
             await update.message.reply_text(
                 "✅ Phone saved!\n\n"
-                "**Step 4 of 5**: Select your country:",
+                "**Step 4 of 6**: Select your country:",
                 reply_markup=get_country_keyboard(),
                 parse_mode="Markdown"
             )
@@ -221,7 +261,7 @@ async def handle_signup_callback(update: Update, context: ContextTypes.DEFAULT_T
                 
                 await query.edit_message_text(
                     f"✅ Country set to **{country}**!\n\n"
-                    "**Step 5 of 5**: Please review our Terms of Service:",
+                    "**Step 5 of 6**: Please review our Terms of Service:",
                     parse_mode="Markdown"
                 )
                 await show_terms_inline(query.message, context)
@@ -245,12 +285,17 @@ async def handle_signup_callback(update: Update, context: ContextTypes.DEFAULT_T
                 "━━━━━━━━━━━━━━━━━━━━\n\n"
                 f"Welcome to TradeSigx, **{user.full_name}**!\n\n"
                 "You're now on the **FREE** plan with 3 signals per day.\n\n"
+                "🛡 **FINAL STEP**: Please verify your identity (KYC) to unlock full withdrawal capabilities and priority analysis.\n\n"
                 "🚀 **Quick Start**:\n"
                 "• Use /menu to access all features\n"
                 "• Use /upgrade to unlock unlimited signals\n"
-                "• Use /kyc to verify your identity\n\n"
+                "• Click the button below to start KYC\n\n"
                 "Happy trading! 📈",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🛡 Start KYC Verification", callback_data="cmd_kyc")],
+                    [InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_main")]
+                ])
             )
             return True
         

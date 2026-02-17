@@ -72,12 +72,37 @@
                     <div class="history-item empty">Connecting to server...</div>
                 </div>
             </section>
+
+            <section id="admin-section" class="card glass" style="display:none;">
+                <div class="card-header">
+                    <h3>👥 User Management</h3>
+                    <button id="refresh-users" class="btn-primary"
+                        style="padding: 5px 10px; font-size: 12px;">Refresh</button>
+                </div>
+                <div class="admin-table-container">
+                    <table id="user-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Plan</th>
+                                <th>KYC</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-list-body">
+                            <!-- User rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </main>
 
         <nav class="bottom-nav glass">
             <button class="nav-item active" data-tab="dashboard">Dashboard</button>
             <button class="nav-item" data-tab="signals">Signals</button>
             <button class="nav-item" data-tab="history">History</button>
+            <button id="nav-admin" class="nav-item" data-tab="admin" style="display:none;">Admin</button>
         </nav>
     </div>
     <script src="app.js"></script>

@@ -1560,6 +1560,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     db.close()
     
                 message, kb = format_signal(signal, user_tz=user_tz)
+                
+                # Promotional Reminder for Free/Unregistered Users
+                db = init_db()
+                try:
+                    user_obj = db.get_user_by_telegram_id(str(update.effective_user.id))
+                    if not user_obj or not user_obj.is_registered:
+                        message += "\n\n💡 **Tip**: Please /signup to save your history and unlock all features!"
+                    elif user_obj.subscription_plan == "free":
+                        message += "\n\n🚀 **Upgrade to PRO**: Unlock unlimited signals and higher win rates. Use /upgrade!"
+                finally:
+                    db.close()
+
                 await query.edit_message_text(text=message, reply_markup=kb, parse_mode="Markdown")
     
                 # Push to Mini App
