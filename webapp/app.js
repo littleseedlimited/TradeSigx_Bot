@@ -236,6 +236,8 @@ function switchTab(tab) {
     }
 }
 
+let lastLoadedUsers = [];
+
 async function loadAdminUsers() {
     const listBody = document.getElementById('user-list-body');
     if (!listBody) return;
@@ -244,41 +246,91 @@ async function loadAdminUsers() {
 
     try {
         const res = await fetch(`${API_URL}/api/admin/users?admin_id=${userId}`);
-        const users = await res.json();
-
-        listBody.innerHTML = '';
-        if (users.length === 0) {
-            listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No users found.</td></tr>';
-            return;
-        }
-
-        users.forEach(u => {
-            const tr = document.createElement('tr');
-            const kycIcon = u.kyc_status === 'approved' ? '✅' : (u.kyc_status === 'pending' ? '⏳' : '❌');
-
-            tr.innerHTML = `
-                <td>
-                    <div class="user-cell">
-                        <span class="handle">@${u.username || 'N/A'}</span>
-                        <span class="id">${u.telegram_id}</span>
-                    </div>
-                </td>
-                <td><span class="plan-badge plan-${u.subscription_plan}">${u.subscription_plan.toUpperCase()}</span></td>
-                <td><span class="status-badge" title="${u.kyc_status}">${kycIcon}</span></td>
-                <td>${u.is_banned ? '<span class="status-cross">BANNED</span>' : '<span class="status-check">ACTIVE</span>'}</td>
-                <td>
-                    <button class="btn-action ${u.is_banned ? 'promote' : 'ban'}" onclick="adminAction('${u.telegram_id}', '${u.is_banned ? 'unban' : 'ban'}')">${u.is_banned ? 'Unban' : 'Ban'}</button>
-                    <button class="btn-action delete" onclick="adminAction('${u.telegram_id}', 'delete')">Del</button>
-                    ${!u.is_admin ? `<button class="btn-action promote" onclick="adminAction('${u.telegram_id}', 'promote')">↑</button>` : ''}
-                </td>
-            `;
-            listBody.appendChild(tr);
-        });
+        lastLoadedUsers = await res.json();
+        renderUserList(lastLoadedUsers);
     } catch (e) {
         console.error('Admin Load Error:', e);
         listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff4976; padding:20px;">Error loading users.</td></tr>';
     }
 }
+
+function renderUserList(users) {
+    const listBody = document.getElementById('user-list-body');
+    listBody.innerHTML = '';
+
+    if (users.length === 0) {
+        listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No users found.</td></tr>';
+        return;
+    }
+
+    users.forEach(u => {
+        const tr = document.createElement('tr');
+        const kycIcon = u.kyc_status === 'approved' ? '✅' : (u.kyc_status === 'pending' ? '⏳' : '❌');
+
+        tr.innerHTML = `
+            <td>
+                <div class="user-cell" onclick="showUserDetails('${u.telegram_id}')" style="cursor:pointer;">
+                    <span class="handle">@${u.username || 'N/A'}</span>
+                    <span class="id">${u.telegram_id}</span>
+                </div>
+            </td>
+            <td><span class="plan-badge plan-${u.subscription_plan}">${u.subscription_plan.toUpperCase()}</span></td>
+            <td><span class="status-badge" title="${u.kyc_status}">${kycIcon}</span></td>
+            <td>${u.is_banned ? '<span class="status-cross">BANNED</span>' : '<span class="status-check">ACTIVE</span>'}</td>
+            <td>
+                <button class="btn-action ${u.is_banned ? 'promote' : 'ban'}" onclick="adminAction('${u.telegram_id}', '${u.is_banned ? 'unban' : 'ban'}')">${u.is_banned ? 'Unban' : 'Ban'}</button>
+                <button class="btn-action promote" onclick="showUserDetails('${u.telegram_id}')">👁️</button>
+                <button class="btn-action delete" onclick="adminAction('${u.telegram_id}', 'delete')">Del</button>
+            </td>
+        `;
+        listBody.appendChild(tr);
+    });
+}
+
+function showUserDetails(telegramId) {
+    const user = lastLoadedUsers.find(u => u.telegram_id === telegramId);
+    if (!user) return;
+
+    const modalArea = document.getElementById('modal-user-info');
+    const overlay = document.getElementById('admin-modal-overlay');
+
+    let html = '';
+    const fields = [
+        ['ID', 'telegram_id'], ['DB ID', 'id'], ['Name', 'full_name'], ['Email', 'email'],
+        ['Phone', 'phone'], ['Country', 'country'], ['Plan', 'subscription_plan'],
+        ['Expiry', 'plan_expires_at'], ['KYC', 'kyc_status'], ['KYC Submitted', 'kyc_submitted_at'],
+        ['Banned', 'is_banned'], ['Ban Reason', 'ban_reason'], ['Admin', 'is_admin'],
+        ['Super', 'is_super_admin'], ['Balance', 'wallet_balance'], ['Signals Today', 'signals_used_today'],
+        ['Timezone', 'timezone'], ['Autotrade', 'autotrade_enabled'], ['Joined', 'joined_at']
+    ];
+
+    fields.forEach(([label, key]) => {
+        let val = user[key];
+        if (typeof val === 'boolean') val = val ? 'YES' : 'NO';
+        if (key === 'wallet_balance') val = `$${val.toFixed(2)}`;
+        html += `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${val || 'N/A'}</span></div>`;
+    });
+
+    modalArea.innerHTML = html;
+    overlay.style.display = 'flex';
+    tele.HapticFeedback.impactOccurred('medium');
+}
+
+function closeAdminModal() {
+    document.getElementById('admin-modal-overlay').style.display = 'none';
+}
+
+// Search Functionality
+document.getElementById('admin-user-search')?.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = lastLoadedUsers.filter(u =>
+        u.telegram_id.toString().includes(term) ||
+        (u.username && u.username.toLowerCase().includes(term)) ||
+        (u.full_name && u.full_name.toLowerCase().includes(term)) ||
+        (u.email && u.email.toLowerCase().includes(term))
+    );
+    renderUserList(filtered);
+});
 
 async function adminAction(targetId, action) {
     if (action === 'delete' && !confirm('Are you sure you want to delete this user?')) return;
@@ -298,19 +350,33 @@ async function adminAction(targetId, action) {
             tele.HapticFeedback.notificationOccurred('success');
             loadAdminUsers();
         } else {
-            alert('Action failed: ' + data.detail);
+            alert('Action failed: ' + data.message);
         }
     } catch (e) {
         console.error('Admin Action Error:', e);
-        alert('Connection error');
     }
 }
 
-// Refresh button
-document.getElementById('refresh-users').addEventListener('click', loadAdminUsers);
 
-// Expose adminAction to global scope for onclick handlers
+// Refresh button
+document.getElementById('refresh-users')?.addEventListener('click', loadAdminUsers);
+
+// Search Functionality
+document.getElementById('admin-user-search')?.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = lastLoadedUsers.filter(u =>
+        u.telegram_id.toString().includes(term) ||
+        (u.username && u.username.toLowerCase().includes(term)) ||
+        (u.full_name && u.full_name.toLowerCase().includes(term)) ||
+        (u.email && u.email.toLowerCase().includes(term))
+    );
+    renderUserList(filtered);
+});
+
+// Expose admin functions to global scope
 window.adminAction = adminAction;
+window.showUserDetails = showUserDetails;
+window.closeAdminModal = closeAdminModal;
 
 async function runMarketScan() {
     const grid = document.getElementById('scanner-grid');

@@ -231,11 +231,21 @@ async def admin_get_users(admin_id: str):
                 "username": u.username,
                 "full_name": u.full_name,
                 "email": u.email,
+                "phone": u.phone,
+                "country": u.country,
                 "subscription_plan": u.subscription_plan,
+                "plan_expires_at": u.plan_expires_at.isoformat() if u.plan_expires_at else None,
                 "kyc_status": u.kyc_status,
+                "kyc_submitted_at": u.kyc_submitted_at.isoformat() if u.kyc_submitted_at else None,
                 "is_registered": u.is_registered,
                 "is_admin": u.is_admin,
+                "is_super_admin": u.is_super_admin,
                 "is_banned": u.is_banned,
+                "ban_reason": u.ban_reason,
+                "wallet_balance": u.wallet_balance,
+                "signals_used_today": u.signals_used_today,
+                "timezone": u.timezone,
+                "autotrade_enabled": u.autotrade_enabled,
                 "joined_at": u.joined_at.isoformat() if u.joined_at else None
             }
             for u in users
