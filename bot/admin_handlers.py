@@ -3,9 +3,10 @@ Super Admin Handler for TradeSigx Bot
 Full CRUD, User Management, KYC Review, Plan Upgrades
 """
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes
 from utils.db import init_db, User, SUPER_ADMIN_ID
+from config import Config
 import datetime
 
 def is_super_admin(user_id: str) -> bool:
@@ -32,18 +33,18 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     keyboard = [
-        [InlineKeyboardButton("👥 All Users", callback_data="admin_users_1"),
-         InlineKeyboardButton("📊 Stats", callback_data="admin_stats")],
-        [InlineKeyboardButton("🔍 Search User", callback_data="admin_search"),
-         InlineKeyboardButton("📋 Pending KYC", callback_data="admin_kyc_pending")],
-        [InlineKeyboardButton("💰 Transactions", callback_data="admin_transactions"),
-         InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast")],
+        [InlineKeyboardButton("🖥️ Open Admin Dashboard ◽", web_app=WebAppInfo(url=Config.BASE_URL))],
+        [InlineKeyboardButton("👥 View All Users", callback_data="admin_users_1")],
+        [InlineKeyboardButton("📊 System Stats", callback_data="admin_stats")],
+        [InlineKeyboardButton("✅ Verify User", callback_data="admin_kyc_pending")],
+        [InlineKeyboardButton("↑ Upgrade User Plan", callback_data="admin_search")],
+        [InlineKeyboardButton("⬅️ Close", callback_data="back_to_main")],
     ]
     
     await update.message.reply_text(
-        "🔐 **SUPER ADMIN DASHBOARD**\n"
+        "🛡️ **SUPER ADMIN CONSOLE**\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "Welcome, Administrator. Select an action:",
+        "Choose an action:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
@@ -79,10 +80,9 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             
             text = f"👥 **USER LIST** (Page {page}/{total_pages})\n━━━━━━━━━━━━━━━━━━━━\n\n"
             for u in users:
-                status = "✅" if u.is_registered else "⏳"
+                kyc_status = "✅" if u.kyc_status == "approved" else ("⌛" if u.kyc_status == "pending" else "⚪")
                 plan = u.subscription_plan.upper()
-                kyc = "🟢" if u.kyc_status == "approved" else ("🟡" if u.kyc_status == "pending" else "⚪")
-                text += f"{status} `{u.telegram_id}` | {u.full_name or u.username or 'N/A'} | {plan} {kyc}\n"
+                text += f"{kyc_status} {u.telegram_id} | {u.username or u.full_name or 'N/A'} | {plan}\n"
             
             nav_buttons = []
             if page > 1:
@@ -364,17 +364,16 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
     
     # Back to Admin Menu
     elif data == "admin_back":
-        keyboard = [
-            [InlineKeyboardButton("👥 All Users", callback_data="admin_users_1"),
-             InlineKeyboardButton("📊 Stats", callback_data="admin_stats")],
-            [InlineKeyboardButton("🔍 Search User", callback_data="admin_search"),
-             InlineKeyboardButton("📋 Pending KYC", callback_data="admin_kyc_pending")],
-            [InlineKeyboardButton("💰 Transactions", callback_data="admin_transactions"),
-             InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast")],
-        ]
         await query.edit_message_text(
-            "🔐 **SUPER ADMIN DASHBOARD**\n━━━━━━━━━━━━━━━━━━━━\nSelect an action:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            "🛡️ **SUPER ADMIN CONSOLE**\n━━━━━━━━━━━━━━━━━━━━\nChoose an action:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🖥️ Open Admin Dashboard ◽", web_app=WebAppInfo(url=Config.BASE_URL))],
+                [InlineKeyboardButton("👥 View All Users", callback_data="admin_users_1")],
+                [InlineKeyboardButton("📊 System Stats", callback_data="admin_stats")],
+                [InlineKeyboardButton("✅ Verify User", callback_data="admin_kyc_pending")],
+                [InlineKeyboardButton("↑ Upgrade User Plan", callback_data="admin_search")],
+                [InlineKeyboardButton("⬅️ Close", callback_data="back_to_main")],
+            ]),
             parse_mode="Markdown"
         )
         return True
