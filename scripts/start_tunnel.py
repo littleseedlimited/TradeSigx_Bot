@@ -5,7 +5,7 @@ import time
 
 def start_tunnel(subdomain="tradesigx"):
     print(f"Starting tunnel for subdomain: {subdomain}")
-    cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=60", "-R", f"{subdomain}:80:localhost:8000", "serveo.net"]
+    cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=60", "-R", f"{subdomain}:80:localhost:5000", "serveo.net"]
     
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     
