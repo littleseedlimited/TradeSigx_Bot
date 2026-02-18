@@ -297,6 +297,213 @@ h3 {
     box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
 }
 
+/* --- Admin Light Theme Redesign --- */
+.admin-light-theme {
+    background: #ffffff !important;
+    color: #333333 !important;
+    padding: 20px !important;
+    border-radius: 0 !important;
+    /* Matches screenshot edge-to-edge look */
+    box-shadow: none !important;
+    min-height: 100vh;
+}
+
+.admin-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.shield-icon {
+    font-size: 24px;
+    color: #4c6ef5;
+}
+
+.admin-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #7950f2;
+    margin: 0;
+}
+
+.admin-stats-row {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 40px;
+}
+
+.stat-box h1 {
+    font-size: 36px;
+    font-weight: 700;
+    margin: 0;
+    color: #212529;
+}
+
+.stat-box p {
+    font-size: 14px;
+    color: #495057;
+    margin: 5px 0 0 0;
+    font-weight: 500;
+}
+
+.user-mgmt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.user-mgmt-header h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #212529;
+    margin: 0;
+}
+
+.btn-refresh {
+    background: none;
+    border: none;
+    color: #495057;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.admin-search-container {
+    margin-bottom: 25px;
+}
+
+.admin-search-input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 16px;
+    color: #495057;
+}
+
+.admin-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+#user-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#user-table th {
+    text-align: left;
+    font-size: 15px;
+    font-weight: 600;
+    color: #212529;
+    padding: 15px 10px;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+#user-table td {
+    padding: 20px 10px;
+    border-bottom: 1px solid #f1f3f5;
+    vertical-align: top;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* Multi-line Cell Styling */
+.cell-main {
+    font-weight: 700;
+    color: #212529;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.cell-sub {
+    font-size: 12px;
+    color: #868e96;
+    display: block;
+}
+
+.cell-contact {
+    color: #495057;
+}
+
+/* Status Badges */
+.status-badge-new {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-verified {
+    background: #e6fcf5;
+    color: #099268;
+}
+
+.status-unverified {
+    background: #fff5f5;
+    color: #fa5252;
+}
+
+/* Action Icons */
+.actions-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.icon-verify {
+    background: #51cf66;
+    color: white;
+}
+
+.icon-upgrade {
+    background: #339af0;
+    color: white;
+}
+
+.icon-ban {
+    background: #fa5252;
+    color: white;
+}
+
+.icon-delete {
+    background: #fa5252;
+    color: white;
+}
+
+/* Admin Modal Overlay (Light) */
+.modal-overlay-light {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Admin Dashboard Styles */
 .admin-table-container {
     width: 100%;

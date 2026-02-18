@@ -242,11 +242,19 @@ async function loadAdminUsers() {
     const listBody = document.getElementById('user-list-body');
     if (!listBody) return;
 
-    listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Loading users...</td></tr>';
+    listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color: #333;">Loading users...</td></tr>';
 
     try {
         const res = await fetch(`${API_URL}/api/admin/users?admin_id=${userId}`);
         lastLoadedUsers = await res.json();
+
+        // Update Stats
+        const total = lastLoadedUsers.length;
+        const verified = lastLoadedUsers.filter(u => u.kyc_status === 'approved').length;
+
+        document.getElementById('total-users-count').innerText = total;
+        document.getElementById('verified-users-count').innerText = verified;
+
         renderUserList(lastLoadedUsers);
     } catch (e) {
         console.error('Admin Load Error:', e);
@@ -259,28 +267,45 @@ function renderUserList(users) {
     listBody.innerHTML = '';
 
     if (users.length === 0) {
-        listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No users found.</td></tr>';
+        listBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color: #333;">No users found.</td></tr>';
         return;
     }
 
     users.forEach(u => {
         const tr = document.createElement('tr');
-        const kycIcon = u.kyc_status === 'approved' ? '✅' : (u.kyc_status === 'pending' ? '⏳' : '❌');
+        const isVerified = u.kyc_status === 'approved';
+        const joinedDate = u.joined_at ? u.joined_at.split('T')[0] : 'N/A';
+        const expiryDate = u.plan_expires_at ? u.plan_expires_at.split('T')[0] : 'N/A';
 
         tr.innerHTML = `
             <td>
                 <div class="user-cell" onclick="showUserDetails('${u.telegram_id}')" style="cursor:pointer;">
-                    <span class="handle">@${u.username || 'N/A'}</span>
-                    <span class="id">${u.telegram_id}</span>
+                    <span class="cell-main">${u.full_name || 'Anonymous User'}</span>
+                    <span class="cell-sub">ID: ${u.telegram_id}</span>
+                    <span class="cell-sub">Joined: ${joinedDate}</span>
                 </div>
             </td>
-            <td><span class="plan-badge plan-${u.subscription_plan}">${u.subscription_plan.toUpperCase()}</span></td>
-            <td><span class="status-badge" title="${u.kyc_status}">${kycIcon}</span></td>
-            <td>${u.is_banned ? '<span class="status-cross">BANNED</span>' : '<span class="status-check">ACTIVE</span>'}</td>
             <td>
-                <button class="btn-action ${u.is_banned ? 'promote' : 'ban'}" onclick="adminAction('${u.telegram_id}', '${u.is_banned ? 'unban' : 'ban'}')">${u.is_banned ? 'Unban' : 'Ban'}</button>
-                <button class="btn-action promote" onclick="showUserDetails('${u.telegram_id}')">👁️</button>
-                <button class="btn-action delete" onclick="adminAction('${u.telegram_id}', 'delete')">Del</button>
+                <span class="cell-main">${u.subscription_plan.toUpperCase()}</span>
+                <span class="cell-sub">Exp: ${expiryDate}</span>
+            </td>
+            <td class="cell-contact">
+                <div>${u.email || 'No email'}</div>
+                <div>${u.phone || 'No phone'}</div>
+                <div class="cell-sub">${u.country || 'N/A'}</div>
+            </td>
+            <td>
+                <span class="status-badge-new ${isVerified ? 'status-verified' : 'status-unverified'}">
+                    ${isVerified ? 'Verified' : 'Unverified'}
+                </span>
+            </td>
+            <td>
+                <div class="actions-cell">
+                    ${!isVerified ? `<button class="icon-btn icon-verify" onclick="adminAction('${u.telegram_id}', 'approve_kyc')" title="Verify User">✅</button>` : ''}
+                    <button class="icon-btn icon-upgrade" onclick="adminAction('${u.telegram_id}', 'upgrade_plan')" title="Upgrade User Plan">↑</button>
+                    <button class="icon-btn icon-ban" onclick="adminAction('${u.telegram_id}', '${u.is_banned ? 'unban' : 'ban'}')" title="${u.is_banned ? 'Unban' : 'Ban'}">🚫</button>
+                    <button class="icon-btn icon-delete" onclick="adminAction('${u.telegram_id}', 'delete')" title="Delete User">🗑️</button>
+                </div>
             </td>
         `;
         listBody.appendChild(tr);

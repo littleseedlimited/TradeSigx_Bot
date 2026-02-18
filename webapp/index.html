@@ -73,25 +73,42 @@
                 </div>
             </section>
 
-            <section id="admin-section" class="card glass" style="display:none;">
-                <div class="card-header">
-                    <h3>👥 User Management</h3>
-                    <button id="refresh-users" class="btn-primary"
-                        style="padding: 5px 10px; font-size: 12px;">Refresh</button>
+            <section id="admin-section" class="card admin-light-theme" style="display:none;">
+                <div class="admin-header">
+                    <span class="shield-icon">🛡️</span>
+                    <h2 class="admin-title">Admin Console</h2>
                 </div>
+
+                <!-- Stats Row -->
+                <div class="admin-stats-row">
+                    <div class="stat-box">
+                        <h1 id="total-users-count">0</h1>
+                        <p>Total Users</p>
+                    </div>
+                    <div class="stat-box">
+                        <h1 id="verified-users-count">0</h1>
+                        <p>Verified Users</p>
+                    </div>
+                </div>
+
+                <div class="user-mgmt-header">
+                    <h3>User Management</h3>
+                    <button id="refresh-users" class="btn-refresh"><span class="icon-refresh">↩️</span> Refresh</button>
+                </div>
+
                 <!-- Search Bar -->
-                <div class="admin-search-container" style="margin-bottom: 15px;">
-                    <input type="text" id="admin-user-search" placeholder="Search by ID, Name or Username..."
-                        class="glass"
-                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color:white;">
+                <div class="admin-search-container">
+                    <input type="text" id="admin-user-search" placeholder="Search users by name or ID..."
+                        class="admin-search-input">
                 </div>
+
                 <div class="admin-table-container">
                     <table id="user-table">
                         <thead>
                             <tr>
                                 <th>User</th>
                                 <th>Plan</th>
-                                <th>KYC</th>
+                                <th>Contact</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>

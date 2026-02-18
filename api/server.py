@@ -279,6 +279,16 @@ async def admin_user_action(payload: dict):
             user.is_admin = True
         elif action == "demote":
             user.is_admin = False
+        elif action == "approve_kyc":
+            user.kyc_status = "approved"
+            user.kyc_reviewed_at = datetime.datetime.utcnow()
+        elif action == "upgrade_plan":
+            plan_cycle = ["free", "basic", "pro", "vip"]
+            current_idx = plan_cycle.index(user.subscription_plan) if user.subscription_plan in plan_cycle else 0
+            next_plan = plan_cycle[(current_idx + 1) % len(plan_cycle)]
+            user.subscription_plan = next_plan
+            # Reset expiry for the new plan (30 days)
+            user.plan_expires_at = datetime.datetime.utcnow() + datetime.timedelta(days=30)
         elif action == "delete":
             # Cascading deletion for SQLite (manual because of how models are structured)
             db.session.query(TradeExecution).filter(TradeExecution.user_id == target_id).delete()
