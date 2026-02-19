@@ -16,7 +16,7 @@ services:
         sync: false
       - key: PORT
         value: "5000"
-      - key: BASE_URL
+      - key: TRADESIGX_BASE_URL
         sync: false # Set to your Render URL: e.g. https://tradesigx-bot.onrender.com
     disk:
       name: tradesigx-db

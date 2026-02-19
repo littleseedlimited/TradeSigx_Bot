@@ -383,8 +383,17 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
 async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle admin text inputs for search, broadcast, KYC rejection"""
     user_id = str(update.effective_user.id)
+    text = update.message.text or ""
     
     if not is_admin(user_id):
+        return False
+
+    # IGNORE commands or menu buttons - let main handler take over
+    menu_buttons = ["📈 Generate Signal", "⚡ Quick Analysis", "💼 Wallet", "🔌 Brokers", "⚙️ Settings", "📖 Help", "ℹ️ About"]
+    if text.startswith("/") or text in menu_buttons:
+        # Clear modes if they try to navigate away
+        context.user_data['admin_search_mode'] = False
+        context.user_data['admin_broadcast_mode'] = False
         return False
     
     # Search Mode
