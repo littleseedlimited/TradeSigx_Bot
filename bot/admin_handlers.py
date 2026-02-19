@@ -44,7 +44,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🛡️ **SUPER ADMIN CONSOLE**\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "Choose an action:",
+        "Select an operation mode:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
@@ -89,7 +89,7 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
                 ban = "🚫" if u.is_banned else " "
                 status = f"{kyc}{ban}"
                 plan = u.subscription_plan[:3].upper()
-                text += f"`┃ {status:<6} ┃ {u.telegram_id:<11} ┃ {plan:<4} ┃` [View](https://t.me/share/url?url=/admin_view_{u.telegram_id})\n"
+                text += f"`┃ {status:<6} ┃ {u.telegram_id:<11} ┃ {plan:<4} ┃` \n"
             
             nav_buttons = []
             if page > 1:
@@ -100,15 +100,17 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             # Create a matrix of View Profile buttons for the current page
             user_buttons = []
             for u in users:
-                short_name = (u.username or u.full_name or str(u.telegram_id))[:10]
-                user_buttons.append(InlineKeyboardButton(f"👤 {short_name}", callback_data=f"admin_view_{u.telegram_id}"))
+                # Use a more identifiable label for the buttons
+                label = f"👤 {u.username or u.full_name or u.telegram_id}"
+                if len(label) > 15: label = label[:12] + "..."
+                user_buttons.append(InlineKeyboardButton(label, callback_data=f"admin_view_{u.telegram_id}"))
             
             # Split user buttons into groups of 2 for the keyboard
             keyboard = [user_buttons[i:i + 2] for i in range(0, len(user_buttons), 2)]
             
             if nav_buttons:
                 keyboard.append(nav_buttons)
-            keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="admin_back")])
+            keyboard.append([InlineKeyboardButton("🔙 Back to Main", callback_data="admin_back")])
             
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         finally:
@@ -261,27 +263,28 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             text = (
                 f"🧠 **USER INTELLIGENCE REPORT**\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"👤 **Core Profile**\n"
+                f"👤 **CORE PROFILE**\n"
                 f"┣ ID: `{user.telegram_id}`\n"
-                f"┣ DB_ID: `{user.id}`\n"
+                f"┣ DB_ID: `#{user.id:04d}`\n"
                 f"┣ Name: `{user.full_name or 'N/A'}`\n"
                 f"┣ User: @{user.username or 'N/A'}\n"
                 f"┣ Email: `{user.email or 'N/A'}`\n"
                 f"┣ Phone: `{user.phone or 'N/A'}`\n"
                 f"┣ Country: `{user.country or 'N/A'}`\n"
-                f"┗ Joined: `{user.joined_at}`\n\n"
+                f"┗ Joined: `{user.joined_at.strftime('%Y-%m-%d %H:%M')}`\n\n"
                 
-                f"💎 **Subscription & Access**\n"
+                f"🛡️ **SUBSCRIPTION & ACCESS**\n"
                 f"┣ Plan: `{user.subscription_plan.upper()}`\n"
-                f"┣ Expires: `{user.plan_expires_at or 'NEVER'}`\n"
+                f"┣ Expires: `{user.plan_expires_at.strftime('%Y-%m-%d') if user.plan_expires_at else 'NEVER'}`\n"
                 f"┣ KYC: `{user.kyc_status.upper()}`\n"
                 f"┣ Registered: `{'YES' if user.is_registered else 'NO'}`\n"
                 f"┣ Admin: `{'YES' if user.is_admin else 'NO'}`\n"
-                f"┗ Banned: `{'YES' if user.is_banned else 'NO'}`\n\n"
+                f"┗ Status: `{'🚫 BANNED' if user.is_banned else '✅ ACTIVE'}`\n\n"
                 
-                f"💰 **Financials & Usage**\n"
-                f"┣ Balance: `${user.wallet_balance:.2f}`\n"
-                f"┣ Lot: `{user.default_lot}` | Risk: `{user.risk_per_trade}%` \n"
+                f"💹 **FINANCIALS & TRADING**\n"
+                f"┣ Balance: `${user.wallet_balance:,.2f}`\n"
+                f"┣ Lot size: `{user.default_lot}`\n"
+                f"┣ Risk/Trade: `{user.risk_per_trade}%` \n"
                 f"┗ Signals Today: `{user.signals_used_today}`\n"
             )
             
