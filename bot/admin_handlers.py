@@ -33,7 +33,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     keyboard = [
-        [InlineKeyboardButton("🖥️ Open Admin Dashboard ◽", web_app=WebAppInfo(url=Config.BASE_URL))],
+        [InlineKeyboardButton("🖥️ Open Admin Dashboard ◽", web_app=WebAppInfo(url=f"{Config.BASE_URL}?tab=admin"))],
         [InlineKeyboardButton("👥 View All Users", callback_data="admin_users_1")],
         [InlineKeyboardButton("📊 System Stats", callback_data="admin_stats")],
         [InlineKeyboardButton("✅ Verify User", callback_data="admin_kyc_pending")],

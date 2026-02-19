@@ -33,6 +33,12 @@ function connectWebSocket() {
         setTimeout(connectWebSocket, 5000);
     };
 
+    socket.onerror = (error) => {
+        console.error('WebSocket Error Detail:', error);
+        document.getElementById('trade-timer').innerText = 'CONNECTION ERROR';
+        document.getElementById('trade-timer').style.color = '#ff4976';
+    };
+
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
@@ -94,6 +100,14 @@ const candleSeries = chart.addCandlestickSeries({
     wickDownColor: '#ff4976',
     wickUpColor: '#00d4ff',
 });
+
+// Responsive chart
+const resizeObserver = new ResizeObserver(entries => {
+    if (entries.length === 0 || !entries[0].contentRect) return;
+    const { width, height } = entries[0].contentRect;
+    chart.applyOptions({ width, height });
+});
+resizeObserver.observe(chartContainer);
 
 // Fallback Mock Data Generator (if API fails)
 function generateMockData() {
@@ -386,18 +400,6 @@ async function adminAction(targetId, action) {
 // Refresh button
 document.getElementById('refresh-users')?.addEventListener('click', loadAdminUsers);
 
-// Search Functionality
-document.getElementById('admin-user-search')?.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase();
-    const filtered = lastLoadedUsers.filter(u =>
-        u.telegram_id.toString().includes(term) ||
-        (u.username && u.username.toLowerCase().includes(term)) ||
-        (u.full_name && u.full_name.toLowerCase().includes(term)) ||
-        (u.email && u.email.toLowerCase().includes(term))
-    );
-    renderUserList(filtered);
-});
-
 // Expose admin functions to global scope
 window.adminAction = adminAction;
 window.showUserDetails = showUserDetails;
@@ -454,10 +456,12 @@ async function runMarketScan() {
     }
 }
 
-// Auto-switch to signals if URL suggests (e.g., from Quick Analysis)
+// Auto-switch to signals or admin if URL suggests
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('tab') === 'signals') {
     setTimeout(() => switchTab('signals'), 500);
+} else if (urlParams.get('tab') === 'admin') {
+    setTimeout(() => switchTab('admin'), 500);
 }
 
 // Mock Wallet Connection
