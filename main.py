@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from bot.handlers import start_command, handle_message, callback_handler
 from utils.db import init_db
+from config import Config
 from api.server import app as api_app  # Combined Process
 import uvicorn
 

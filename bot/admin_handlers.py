@@ -33,12 +33,12 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     keyboard = [
-        [InlineKeyboardButton("🖥️ Open Admin Dashboard ◽", web_app=WebAppInfo(url=f"{Config.BASE_URL}?tab=admin"))],
-        [InlineKeyboardButton("👥 View All Users", callback_data="admin_users_1")],
+        [InlineKeyboardButton("👥 View User Grid (Monospace)", callback_data="admin_users_1")],
         [InlineKeyboardButton("📊 System Stats", callback_data="admin_stats")],
         [InlineKeyboardButton("✅ Verify User", callback_data="admin_kyc_pending")],
-        [InlineKeyboardButton("↑ Upgrade User Plan", callback_data="admin_search")],
-        [InlineKeyboardButton("⬅️ Close", callback_data="back_to_main")],
+        [InlineKeyboardButton("🔍 Search User Intelligence", callback_data="admin_search")],
+        [InlineKeyboardButton("📢 Broadcast Announcement", callback_data="admin_broadcast")],
+        [InlineKeyboardButton("⬅️ Close Console", callback_data="back_to_main")],
     ]
     
     await update.message.reply_text(
@@ -78,11 +78,18 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
                 await query.edit_message_text("No users found.")
                 return
             
-            text = f"👥 **USER LIST** (Page {page}/{total_pages})\n━━━━━━━━━━━━━━━━━━━━\n\n"
+            text = (
+                "👥 **SUPER ADMIN USER GRID**\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "`┃ STATUS ┃ TELEGRAM ID ┃ PLAN ┃` \n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+            )
             for u in users:
-                kyc_status = "✅" if u.kyc_status == "approved" else ("⌛" if u.kyc_status == "pending" else "⚪")
-                plan = u.subscription_plan.upper()
-                text += f"{kyc_status} {u.telegram_id} | {u.username or u.full_name or 'N/A'} | {plan}\n"
+                kyc = "✅" if u.kyc_status == "approved" else ("⌛" if u.kyc_status == "pending" else "⚪")
+                ban = "🚫" if u.is_banned else " "
+                status = f"{kyc}{ban}"
+                plan = u.subscription_plan[:3].upper()
+                text += f"`┃ {status:<6} ┃ {u.telegram_id:<11} ┃ {plan:<4} ┃` [View](https://t.me/share/url?url=/admin_view_{u.telegram_id})\n"
             
             nav_buttons = []
             if page > 1:
@@ -90,7 +97,17 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             if page < total_pages:
                 nav_buttons.append(InlineKeyboardButton("Next ▶️", callback_data=f"admin_users_{page+1}"))
             
-            keyboard = [nav_buttons] if nav_buttons else []
+            # Create a matrix of View Profile buttons for the current page
+            user_buttons = []
+            for u in users:
+                short_name = (u.username or u.full_name or str(u.telegram_id))[:10]
+                user_buttons.append(InlineKeyboardButton(f"👤 {short_name}", callback_data=f"admin_view_{u.telegram_id}"))
+            
+            # Split user buttons into groups of 2 for the keyboard
+            keyboard = [user_buttons[i:i + 2] for i in range(0, len(user_buttons), 2)]
+            
+            if nav_buttons:
+                keyboard.append(nav_buttons)
             keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="admin_back")])
             
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -230,7 +247,7 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         )
         return True
     
-    # User Detail View
+    # User Detail View (Intelligence Mode)
     elif data.startswith("admin_view_"):
         target_id = data.split("_")[2]
         db = init_db()
@@ -240,30 +257,44 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
                 await query.edit_message_text("User not found.")
                 return
             
+            # Show ALL fields as requested
             text = (
-                f"👤 **USER PROFILE**\n"
+                f"🧠 **USER INTELLIGENCE REPORT**\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"**ID**: `{user.telegram_id}`\n"
-                f"**Username**: @{user.username or 'N/A'}\n"
-                f"**Name**: {user.full_name or 'N/A'}\n"
-                f"**Email**: {user.email or 'N/A'}\n"
-                f"**Phone**: {user.phone or 'N/A'}\n"
-                f"**Country**: {user.country or 'N/A'}\n"
-                f"**Registered**: {'✅' if user.is_registered else '❌'}\n"
-                f"**Plan**: {user.subscription_plan.upper()}\n"
-                f"**Expires**: {user.plan_expires_at or 'N/A'}\n"
-                f"**KYC**: {user.kyc_status}\n"
-                f"**Banned**: {'🚫 Yes' if user.is_banned else '✅ No'}\n"
-                f"**Wallet**: ${user.wallet_balance:.2f}\n"
-                f"**Joined**: {user.joined_at}\n"
+                f"👤 **Core Profile**\n"
+                f"┣ ID: `{user.telegram_id}`\n"
+                f"┣ DB_ID: `{user.id}`\n"
+                f"┣ Name: `{user.full_name or 'N/A'}`\n"
+                f"┣ User: @{user.username or 'N/A'}\n"
+                f"┣ Email: `{user.email or 'N/A'}`\n"
+                f"┣ Phone: `{user.phone or 'N/A'}`\n"
+                f"┣ Country: `{user.country or 'N/A'}`\n"
+                f"┗ Joined: `{user.joined_at}`\n\n"
+                
+                f"💎 **Subscription & Access**\n"
+                f"┣ Plan: `{user.subscription_plan.upper()}`\n"
+                f"┣ Expires: `{user.plan_expires_at or 'NEVER'}`\n"
+                f"┣ KYC: `{user.kyc_status.upper()}`\n"
+                f"┣ Registered: `{'YES' if user.is_registered else 'NO'}`\n"
+                f"┣ Admin: `{'YES' if user.is_admin else 'NO'}`\n"
+                f"┗ Banned: `{'YES' if user.is_banned else 'NO'}`\n\n"
+                
+                f"💰 **Financials & Usage**\n"
+                f"┣ Balance: `${user.wallet_balance:.2f}`\n"
+                f"┣ Lot: `{user.default_lot}` | Risk: `{user.risk_per_trade}%` \n"
+                f"┗ Signals Today: `{user.signals_used_today}`\n"
             )
             
             keyboard = [
                 [InlineKeyboardButton("⬆️ Upgrade Plan", callback_data=f"admin_upgrade_{target_id}"),
                  InlineKeyboardButton("💰 Add Balance", callback_data=f"admin_addbal_{target_id}")],
-                [InlineKeyboardButton("🚫 Ban" if not user.is_banned else "✅ Unban", 
-                                      callback_data=f"admin_ban_{target_id}" if not user.is_banned else f"admin_unban_{target_id}")],
-                [InlineKeyboardButton("🔙 Back", callback_data="admin_users_1")]
+                [InlineKeyboardButton("⭐ Promote Admin" if not user.is_admin else "🎖️ Demote Admin", 
+                                      callback_data=f"admin_promote_{target_id}" if not user.is_admin else f"admin_demote_{target_id}")],
+                [InlineKeyboardButton("🚫 Ban User" if not user.is_banned else "✅ Unban User", 
+                                      callback_data=f"admin_ban_{target_id}" if not user.is_banned else f"admin_unban_{target_id}"),
+                 InlineKeyboardButton("🔄 Reset Signals", callback_data=f"admin_reset_{target_id}")],
+                [InlineKeyboardButton("🗑️ DELETE ACCOUNT", callback_data=f"admin_del_conf_{target_id}")],
+                [InlineKeyboardButton("🔙 Back to Grid", callback_data="admin_users_1")]
             ]
             
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -315,6 +346,90 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             db.close()
         return True
     
+    # Promote User to Admin
+    elif data.startswith("admin_promote_"):
+        target_id = data.split("_")[2]
+        db = init_db()
+        try:
+            user = db.get_user_by_telegram_id(target_id)
+            if user:
+                user.is_admin = True
+                db.commit()
+                await query.edit_message_text(f"⭐ User `{target_id}` has been **PROMOTED** to Admin.", parse_mode="Markdown")
+        finally:
+            db.close()
+        return True
+
+    # Demote Admin to User
+    elif data.startswith("admin_demote_"):
+        target_id = data.split("_")[2]
+        db = init_db()
+        try:
+            user = db.get_user_by_telegram_id(target_id)
+            if user:
+                user.is_admin = False
+                db.commit()
+                await query.edit_message_text(f"🎖️ User `{target_id}` has been **DEMOTED** to User.", parse_mode="Markdown")
+        finally:
+            db.close()
+        return True
+
+    # Delete Confirmation
+    elif data.startswith("admin_del_conf_"):
+        target_id = data.split("_")[3]
+        keyboard = [
+            [InlineKeyboardButton("🔥 YES, DELETE NOW", callback_data=f"admin_delete_{target_id}")],
+            [InlineKeyboardButton("🔙 Cancel", callback_data=f"admin_view_{target_id}")]
+        ]
+        await query.edit_message_text(
+            f"⚠️ **CRITICAL WARNING**\n\nYou are about to **PERMANENTLY DELETE** user `{target_id}` and all their associated data (Settings, Balance, Plans).\n\n**This action CANNOT be undone.** Continue?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        return True
+
+    # Actual Delete Execution
+    elif data.startswith("admin_delete_"):
+        target_id = data.split("_")[2]
+        from utils.db import TradeExecution, BrokerAccount
+        db = init_db()
+        try:
+            user = db.get_user_by_telegram_id(target_id)
+            if user:
+                # Manual cascade for SQLite consistency as seen in server.py
+                db.session.query(TradeExecution).filter(TradeExecution.user_id == target_id).delete()
+                db.session.query(BrokerAccount).filter(BrokerAccount.user_id == user.id).delete()
+                db.session.delete(user)
+                db.commit()
+                await query.edit_message_text(f"🗑️ User `{target_id}` has been **PERMANENTLY DELETED**.", parse_mode="Markdown")
+        finally:
+            db.close()
+        return True
+
+    # Add Balance Preparation (Native Request)
+    elif data.startswith("admin_addbal_"):
+        target_id = data.split("_")[2]
+        context.user_data['admin_bal_target'] = target_id
+        await query.edit_message_text(
+            f"💰 **Balance Adjustment for `{target_id}`**\n\nReply with the amount to ADD or SUBTRACT.\n\nExamples:\n`100` (Add $100)\n`-50` (Subtract $50)",
+            parse_mode="Markdown"
+        )
+        return True
+
+    # Manual Signal Reset
+    elif data.startswith("admin_reset_"):
+        target_id = data.split("_")[2]
+        db = init_db()
+        try:
+            user = db.get_user_by_telegram_id(target_id)
+            if user:
+                user.signals_used_today = 0
+                db.commit()
+                await query.edit_message_text(f"🔄 Daily signal count has been **RESET** for `{target_id}`.", parse_mode="Markdown")
+        finally:
+            db.close()
+        return True
+
     # Ban User
     elif data.startswith("admin_ban_"):
         target_id = data.split("_")[2]
@@ -367,12 +482,12 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text(
             "🛡️ **SUPER ADMIN CONSOLE**\n━━━━━━━━━━━━━━━━━━━━\nChoose an action:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🖥️ Open Admin Dashboard ◽", web_app=WebAppInfo(url=Config.BASE_URL))],
-                [InlineKeyboardButton("👥 View All Users", callback_data="admin_users_1")],
+                [InlineKeyboardButton("👥 View User Grid (Monospace)", callback_data="admin_users_1")],
                 [InlineKeyboardButton("📊 System Stats", callback_data="admin_stats")],
                 [InlineKeyboardButton("✅ Verify User", callback_data="admin_kyc_pending")],
-                [InlineKeyboardButton("↑ Upgrade User Plan", callback_data="admin_search")],
-                [InlineKeyboardButton("⬅️ Close", callback_data="back_to_main")],
+                [InlineKeyboardButton("🔍 Search User Intelligence", callback_data="admin_search")],
+                [InlineKeyboardButton("📢 Broadcast Announcement", callback_data="admin_broadcast")],
+                [InlineKeyboardButton("⬅️ Close Console", callback_data="back_to_main")],
             ]),
             parse_mode="Markdown"
         )
@@ -476,6 +591,44 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 await update.message.reply_text(f"❌ KYC rejected for `{target_id}` with reason: {reason}", parse_mode="Markdown")
         finally:
             db.close()
+        return True
+
+    # Balance Adjustment Processing
+    if context.user_data.get('admin_bal_target'):
+        target_id = context.user_data.pop('admin_bal_target')
+        try:
+            amount = float(update.message.text.strip())
+            db = init_db()
+            try:
+                user = db.get_user_by_telegram_id(target_id)
+                if user:
+                    old_bal = user.wallet_balance
+                    user.wallet_balance += amount
+                    db.commit()
+                    
+                    action = "ADDED" if amount >= 0 else "SUBTRACTED"
+                    await update.message.reply_text(
+                        f"💰 **BALANCE UPDATED**\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"User: `{target_id}`\n"
+                        f"Action: {action} `${abs(amount):.2f}`\n"
+                        f"Previous: `${old_bal:.2f}`\n"
+                        f"New Balance: **`${user.wallet_balance:.2f}`**",
+                        parse_mode="Markdown"
+                    )
+                    
+                    # Notify user
+                    try:
+                        await context.bot.send_message(
+                            target_id,
+                            f"💰 **WALLET UPDATE**\n\nYour balance has been adjusted by an administrator.\n\nAdjustment: `{' insurgent' if amount >= 0 else ''}${amount:.2f}`\nNew Total: **`${user.wallet_balance:.2f}`**",
+                            parse_mode="Markdown"
+                        )
+                    except: pass
+            finally:
+                db.close()
+        except ValueError:
+            await update.message.reply_text("❌ Invalid amount. Please enter a number (e.g. 100 or -50).")
         return True
     
     return False
