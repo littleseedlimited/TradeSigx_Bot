@@ -1,12 +1,11 @@
 import os
 
 class Config:
-    # Prioritize Environment Variables for Production (Render)
-    # Falling back to stable tunnel for local development
-    BASE_URL = os.getenv(
-        "TRADESIGX_BASE_URL", 
-        os.getenv("RENDER_EXTERNAL_URL", "https://tradesigx-v8-gold-pro.serveo.net")
-    )
+    # DEFINITIVE BASE URL RESOLUTION
+    # 1. Check TRADESIGX_BASE_URL (Manual override)
+    # 2. Check RENDER_EXTERNAL_URL (Automatic on Render)
+    # 3. Default to hardcoded stable tunnel
+    BASE_URL = os.getenv("TRADESIGX_BASE_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://tradesigx-v8-gold-pro.serveo.net"
     
     @classmethod
     def update_url(cls, new_url):

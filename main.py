@@ -138,6 +138,7 @@ async def main():
     asyncio.create_task(start_combined_api())
     
     print("TradeSigx Bot: Building Application layer...")
+    logging.info(f"Configuration: BASE_URL is set to {Config.BASE_URL}")
     # Build Application
     from telegram.request import HTTPXRequest
     request = HTTPXRequest(connect_timeout=60, read_timeout=60)
